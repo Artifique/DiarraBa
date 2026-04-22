@@ -1,12 +1,12 @@
-"use client";
+﻿"use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
-import { 
-  FileText, 
-  Search, 
-  Eye, 
-  Download, 
+import {
+  FileText,
+  Search,
+  Eye,
+  Download,
   Printer,
   Clock,
   CheckCircle2,
@@ -15,14 +15,16 @@ import {
   Palmtree
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { 
-  Dialog, 
-  DialogContent, 
-  DialogHeader, 
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
   DialogTitle,
   DialogDescription
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { Pagination } from "@/components/ui/pagination";
+import { DateFilter } from "@/components/ui/date-filter";
 
 const initialFactures = [
   { id: "FAC-2024-001", client: "Ahmed Bennani", montant: 85000, paye: 45000, statut: "Partielle", date: "22 Avr 2024", items: [{desc: "Poussins", qte: 500, pu: 150}, {desc: "Location Couveuse", qte: 1, pu: 10000}] },
@@ -36,16 +38,53 @@ export default function FacturesPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [activeTab, setActiveTab] = useState("Toutes");
 
+  // Pagination and filtering
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage] = useState(10);
+  const [dateFilter, setDateFilter] = useState("");
+
   const handlePrint = () => {
     window.print();
   };
 
   const filteredFactures = initialFactures.filter(f => {
-    const matchesSearch = f.client.toLowerCase().includes(searchQuery.toLowerCase()) || 
+    const matchesSearch = f.client.toLowerCase().includes(searchQuery.toLowerCase()) ||
                          f.id.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesTab = activeTab === "Toutes" || f.statut === activeTab;
-    return matchesSearch && matchesTab;
+    const matchesDate = !dateFilter || f.date === dateFilter;
+    return matchesSearch && matchesTab && matchesDate;
   });
+
+  const totalPages = Math.ceil(filteredFactures.length / itemsPerPage);
+  const paginatedFactures = filteredFactures.slice(
+    (currentPage - 1) * itemsPerPage,
+    currentPage * itemsPerPage
+  );
+
+  // Reset to first page when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery, activeTab, dateFilter]);
+
+  const getStatusColor = (statut: string) => {
+    switch (statut) {
+      case "Payee": return "text-forest-green";
+      case "Partielle": return "text-yellow-500";
+      case "Emise": return "text-blue-400";
+      case "Brouillon": return "text-muted-foreground";
+      default: return "text-muted-foreground";
+    }
+  };
+
+  const getStatusIcon = (statut: string) => {
+    switch (statut) {
+      case "Payee": return <CheckCircle2 className="h-4 w-4" />;
+      case "Partielle": return <AlertCircle className="h-4 w-4" />;
+      case "Emise": return <Clock className="h-4 w-4" />;
+      case "Brouillon": return <FileText className="h-4 w-4" />;
+      default: return null;
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -54,7 +93,7 @@ export default function FacturesPage() {
           <h2 className="text-2xl font-display font-bold text-white">Facturation</h2>
           <p className="text-sm text-muted-foreground">Gérez vos documents comptables et le suivi des règlements clients.</p>
         </div>
-        <button 
+        <button
           onClick={handlePrint}
           className="flex items-center justify-center px-4 py-2.5 bg-white/5 hover:bg-white/10 text-white font-bold rounded-xl border border-white/10 transition-all"
         >
@@ -66,13 +105,13 @@ export default function FacturesPage() {
       <div className="flex flex-col lg:flex-row gap-4 justify-between items-start lg:items-center">
         <div className="flex gap-2 overflow-x-auto pb-2 lg:pb-0 custom-scrollbar w-full lg:w-auto">
           {["Toutes", "Payee", "Partielle", "Emise", "Brouillon"].map((tab) => (
-            <button 
+            <button
               key={tab}
               onClick={() => setActiveTab(tab)}
               className={cn(
                 "px-5 py-2 rounded-full text-[10px] font-bold uppercase tracking-wider transition-all border",
-                activeTab === tab 
-                  ? "bg-orange-accent text-night border-orange-accent shadow-[0_0_15px_rgba(245,166,35,0.3)]" 
+                activeTab === tab
+                  ? "bg-orange-accent text-night border-orange-accent shadow-[0_0_15px_rgba(245,166,35,0.3)]"
                   : "bg-white/5 text-muted-foreground border-white/5 hover:border-white/20"
               )}
             >
@@ -81,14 +120,22 @@ export default function FacturesPage() {
           ))}
         </div>
 
-        <div className="relative w-full lg:w-72">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <input 
-            type="text"
-            placeholder="Rechercher une facture..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full bg-white/5 border border-white/10 rounded-xl py-2 pl-10 pr-4 text-sm text-white focus:outline-none focus:ring-2 focus:ring-orange-accent/50 focus:border-orange-accent/50 transition-all"
+        <div className="flex flex-col sm:flex-row gap-4 w-full lg:w-auto">
+          <div className="relative flex-1 lg:w-72">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <input
+              type="text"
+              placeholder="Rechercher une facture..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full bg-white/5 border border-white/10 rounded-xl py-2 pl-10 pr-4 text-sm text-white focus:outline-none focus:ring-2 focus:ring-orange-accent/50 focus:border-orange-accent/50 transition-all"
+            />
+          </div>
+          <DateFilter
+            value={dateFilter}
+            onChange={setDateFilter}
+            placeholder="Filtrer par date"
+            className="w-full sm:w-48"
           />
         </div>
       </div>
@@ -98,174 +145,185 @@ export default function FacturesPage() {
           <table className="w-full text-left">
             <thead>
               <tr className="border-b border-white/5 bg-white/[0.02] text-[10px] uppercase tracking-[0.15em] text-muted-foreground font-bold">
-                <th className="px-6 py-4">ID Facture</th>
+                <th className="px-6 py-4">Facture</th>
                 <th className="px-6 py-4">Client</th>
-                <th className="px-6 py-4">Date</th>
-                <th className="px-6 py-4">Montant Total</th>
-                <th className="px-6 py-4">Montant Payé</th>
-                <th className="px-6 py-4">Reste</th>
+                <th className="px-6 py-4">Montant</th>
+                <th className="px-6 py-4">Payé</th>
                 <th className="px-6 py-4">Statut</th>
+                <th className="px-6 py-4">Date</th>
                 <th className="px-6 py-4 text-right">Actions</th>
               </tr>
             </thead>
-            <tbody className="text-sm divide-y divide-white/5">
-              {filteredFactures.length > 0 ? filteredFactures.map((f, i) => (
-                <motion.tr 
-                  initial={{ opacity: 0, x: -10 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ delay: i * 0.05 }}
-                  key={f.id} 
-                  className="group hover:bg-white/[0.02] transition-colors"
+            <tbody>
+              {paginatedFactures.map((facture) => (
+                <motion.tr
+                  key={facture.id}
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  className="border-b border-white/5 hover:bg-white/[0.02] transition-colors"
                 >
-                  <td className="px-6 py-4 font-mono font-medium text-white">{f.id}</td>
                   <td className="px-6 py-4">
-                    <div className="flex items-center">
-                      <div className="h-8 w-8 rounded-full bg-orange-accent/10 flex items-center justify-center text-[10px] font-bold text-orange-accent mr-3 border border-orange-accent/20">
-                        {f.client.split(' ').map(n => n[0]).join('')}
+                    <div className="flex items-center gap-3">
+                      <div className="h-10 w-10 rounded-full bg-orange-accent/10 border border-orange-accent/20 flex items-center justify-center text-orange-accent font-bold text-sm">
+                        <FileText className="h-5 w-5" />
                       </div>
-                      <span className="text-white font-medium">{f.client}</span>
+                      <div>
+                        <p className="text-sm font-bold text-white">{facture.id}</p>
+                        <p className="text-[10px] text-muted-foreground">#{facture.id.split('-').pop()}</p>
+                      </div>
                     </div>
                   </td>
-                  <td className="px-6 py-4 text-muted-foreground text-xs">{f.date}</td>
-                  <td className="px-6 py-4 font-mono font-medium text-white">{f.montant.toLocaleString()} FCFA</td>
-                  <td className="px-6 py-4 font-mono text-forest-green">{f.paye.toLocaleString()} FCFA</td>
-                  <td className="px-6 py-4 font-mono font-bold text-orange-accent">{(f.montant - f.paye).toLocaleString()} FCFA</td>
                   <td className="px-6 py-4">
-                    <span className={cn(
-                      "px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-widest border",
-                      f.statut === "Payee" ? "bg-forest-green/10 text-forest-green border-forest-green/20" : 
-                      f.statut === "Partielle" ? "bg-blue-400/10 text-blue-400 border-blue-400/20" : 
-                      f.statut === "Emise" ? "bg-orange-accent/10 text-orange-accent border-orange-accent/20" :
-                      "bg-white/5 text-muted-foreground border-white/10"
-                    )}>
-                      {f.statut}
-                    </span>
+                    <p className="text-sm font-bold text-white">{facture.client}</p>
+                  </td>
+                  <td className="px-6 py-4">
+                    <p className="text-sm font-mono font-bold text-white">{facture.montant.toLocaleString()} FCFA</p>
+                  </td>
+                  <td className="px-6 py-4">
+                    <p className="text-sm font-mono font-bold text-forest-green">{facture.paye.toLocaleString()} FCFA</p>
+                  </td>
+                  <td className="px-6 py-4">
+                    <div className="flex items-center gap-2">
+                      {getStatusIcon(facture.statut)}
+                      <span className={cn("text-xs font-bold", getStatusColor(facture.statut))}>
+                        {facture.statut}
+                      </span>
+                    </div>
+                  </td>
+                  <td className="px-6 py-4">
+                    <p className="text-sm text-muted-foreground">{facture.date}</p>
                   </td>
                   <td className="px-6 py-4 text-right">
-                    <div className="flex justify-end gap-2">
-                      <button 
-                        onClick={() => { setSelectedFacture(f); setIsPreviewOpen(true); }}
-                        className="p-2 bg-white/5 hover:bg-white/10 rounded-lg text-white transition-colors"
-                        title="Voir la facture"
-                      >
-                        <Eye className="h-4 w-4" />
-                      </button>
-                      <button 
-                        onClick={() => { setSelectedFacture(f); handlePrint(); }}
-                        className="p-2 bg-orange-accent/10 hover:bg-orange-accent hover:text-night rounded-lg text-orange-accent transition-all"
-                        title="Télécharger PDF"
-                      >
-                        <Download className="h-4 w-4" />
-                      </button>
-                    </div>
+                    <button
+                      onClick={() => { setSelectedFacture(facture); setIsPreviewOpen(true); }}
+                      className="p-2 hover:bg-white/5 rounded-lg transition-colors text-muted-foreground hover:text-white"
+                      title="Voir les détails"
+                    >
+                      <Eye className="h-4 w-4" />
+                    </button>
                   </td>
                 </motion.tr>
-              )) : (
-                <tr>
-                  <td colSpan={8} className="px-6 py-12 text-center text-muted-foreground italic">
-                    Aucune facture trouvée correspondant à votre recherche.
-                  </td>
-                </tr>
-              )}
+              ))}
             </tbody>
           </table>
         </div>
+
+        {/* Pagination */}
+        {totalPages > 1 && (
+          <div className="px-6 py-4 border-t border-white/5">
+            <Pagination
+              currentPage={currentPage}
+              totalPages={totalPages}
+              onPageChange={setCurrentPage}
+            />
+          </div>
+        )}
       </div>
 
-      {/* Modale d'aperçu de facture */}
+      {/* Facture Preview Modal */}
       <Dialog open={isPreviewOpen} onOpenChange={setIsPreviewOpen}>
-        <DialogContent className="bg-white text-night p-0 sm:max-w-2xl overflow-hidden print:shadow-none">
+        <DialogContent className="bg-night border-white/10 text-white sm:max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="text-white font-display text-xl flex items-center gap-3">
+              <FileText className="h-6 w-6 text-orange-accent" />
+              Facture {selectedFacture?.id}
+            </DialogTitle>
+            <DialogDescription className="text-muted-foreground">
+              Détails de la facture et informations de règlement
+            </DialogDescription>
+          </DialogHeader>
+
           {selectedFacture && (
-            <div className="p-8 space-y-8" id="invoice-content">
-              {/* Header Facture */}
-              <div className="flex justify-between items-start">
-                <div className="flex items-center gap-3">
-                  <div className="h-12 w-12 bg-night rounded-xl flex items-center justify-center">
-                    <Palmtree className="text-orange-accent" />
+            <div className="space-y-6 py-4">
+              {/* Header Info */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="space-y-4">
+                  <div>
+                    <p className="text-xs uppercase tracking-widest font-bold text-white/70 mb-2">Informations client</p>
+                    <div className="space-y-1">
+                      <p className="text-sm font-bold text-white">{selectedFacture.client}</p>
+                      <p className="text-xs text-muted-foreground">Client enregistré</p>
+                    </div>
                   </div>
                   <div>
-                    <h3 className="text-xl font-bold font-display uppercase tracking-tighter">Diarraba Volailles</h3>
-                    <p className="text-[10px] text-muted-foreground">Gestion de ferme moderne</p>
+                    <p className="text-xs uppercase tracking-widest font-bold text-white/70 mb-2">Statut</p>
+                    <div className="flex items-center gap-2">
+                      {getStatusIcon(selectedFacture.statut)}
+                      <span className={cn("text-sm font-bold", getStatusColor(selectedFacture.statut))}>
+                        {selectedFacture.statut}
+                      </span>
+                    </div>
                   </div>
                 </div>
-                <div className="text-right">
-                  <h2 className="text-3xl font-display font-black text-night/20 uppercase">Facture</h2>
-                  <p className="font-mono font-bold text-night">{selectedFacture.id}</p>
-                </div>
-              </div>
 
-              {/* Infos Client & Date */}
-              <div className="grid grid-cols-2 gap-12 border-y border-night/5 py-6">
-                <div>
-                  <p className="text-[10px] font-bold text-muted-foreground uppercase mb-2">Facturé à :</p>
-                  <p className="font-bold text-lg">{selectedFacture.client}</p>
-                  <p className="text-sm text-muted-foreground">Client ID: #12345</p>
-                </div>
-                <div className="text-right">
-                  <p className="text-[10px] font-bold text-muted-foreground uppercase mb-2">Date d'émission :</p>
-                  <p className="font-bold">{selectedFacture.date}</p>
-                  <p className="text-[10px] font-bold text-muted-foreground uppercase mt-4">Statut :</p>
-                  <span className="text-xs font-bold text-orange-accent uppercase">{selectedFacture.statut}</span>
-                </div>
-              </div>
-
-              {/* Table des articles */}
-              <table className="w-full text-left">
-                <thead>
-                  <tr className="border-b-2 border-night text-[10px] uppercase font-bold">
-                    <th className="py-2">Description</th>
-                    <th className="py-2 text-center">Qté</th>
-                    <th className="py-2 text-right">Prix Unit.</th>
-                    <th className="py-2 text-right">Total</th>
-                  </tr>
-                </thead>
-                <tbody className="text-sm divide-y divide-night/5">
-                  {selectedFacture.items.map((item, idx) => (
-                    <tr key={idx}>
-                      <td className="py-3 font-medium">{item.desc}</td>
-                      <td className="py-3 text-center">{item.qte}</td>
-                      <td className="py-3 text-right font-mono">{item.pu.toLocaleString()}</td>
-                      <td className="py-3 text-right font-mono font-bold">{(item.qte * item.pu).toLocaleString()}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-
-              {/* Total */}
-              <div className="flex justify-end pt-4">
-                <div className="w-64 space-y-2">
-                  <div className="flex justify-between text-sm">
-                    <span className="text-muted-foreground">Sous-total</span>
-                    <span className="font-mono">{selectedFacture.montant.toLocaleString()} FCFA</span>
+                <div className="space-y-4">
+                  <div>
+                    <p className="text-xs uppercase tracking-widest font-bold text-white/70 mb-2">Informations facture</p>
+                    <div className="space-y-1">
+                      <p className="text-sm text-muted-foreground">Date d'émission: <span className="text-white font-bold">{selectedFacture.date}</span></p>
+                      <p className="text-sm text-muted-foreground">ID Facture: <span className="text-white font-mono font-bold">#{selectedFacture.id.split('-').pop()}</span></p>
+                    </div>
                   </div>
-                  <div className="flex justify-between text-sm">
-                    <span className="text-muted-foreground">Montant payé</span>
-                    <span className="font-mono text-forest-green">-{selectedFacture.paye.toLocaleString()} FCFA</span>
-                  </div>
-                  <div className="flex justify-between items-center pt-2 border-t-2 border-night">
-                    <span className="font-bold uppercase text-xs">Net à payer</span>
-                    <span className="text-xl font-mono font-black text-orange-accent">{(selectedFacture.montant - selectedFacture.paye).toLocaleString()} FCFA</span>
+                  <div>
+                    <p className="text-xs uppercase tracking-widest font-bold text-white/70 mb-2">Règlement</p>
+                    <div className="space-y-1">
+                      <p className="text-sm text-muted-foreground">Montant total: <span className="text-white font-mono font-bold">{selectedFacture.montant.toLocaleString()} FCFA</span></p>
+                      <p className="text-sm text-muted-foreground">Montant payé: <span className="text-forest-green font-mono font-bold">{selectedFacture.paye.toLocaleString()} FCFA</span></p>
+                      <p className="text-sm text-muted-foreground">Reste à payer: <span className={cn("font-mono font-bold", selectedFacture.montant - selectedFacture.paye > 0 ? "text-destructive" : "text-forest-green")}>{(selectedFacture.montant - selectedFacture.paye).toLocaleString()} FCFA</span></p>
+                    </div>
                   </div>
                 </div>
               </div>
 
-              {/* Footer PDF */}
-              <div className="pt-12 text-center">
-                <p className="text-[10px] text-muted-foreground italic">
-                  Merci de votre confiance. Pour toute question, contactez-nous au +212 612 345678.
-                </p>
+              {/* Items Table */}
+              <div>
+                <p className="text-xs uppercase tracking-widest font-bold text-white/70 mb-4">Détail des articles</p>
+                <div className="glass-card rounded-xl border border-white/5 overflow-hidden">
+                  <table className="w-full text-left">
+                    <thead className="bg-white/5 border-b border-white/5">
+                      <tr className="text-[10px] uppercase tracking-widest text-muted-foreground font-bold">
+                        <th className="px-4 py-3">Description</th>
+                        <th className="px-4 py-3 text-center">Quantité</th>
+                        <th className="px-4 py-3 text-right">Prix Unit.</th>
+                        <th className="px-4 py-3 text-right">Total</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {selectedFacture.items.map((item, index) => (
+                        <tr key={index} className="border-b border-white/5 last:border-b-0">
+                          <td className="px-4 py-3">
+                            <p className="text-sm text-white">{item.desc}</p>
+                          </td>
+                          <td className="px-4 py-3 text-center">
+                            <p className="text-sm font-mono text-white">{item.qte}</p>
+                          </td>
+                          <td className="px-4 py-3 text-right">
+                            <p className="text-sm font-mono text-white">{item.pu.toLocaleString()} FCFA</p>
+                          </td>
+                          <td className="px-4 py-3 text-right">
+                            <p className="text-sm font-mono font-bold text-white">{(item.qte * item.pu).toLocaleString()} FCFA</p>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              {/* Actions */}
+              <div className="flex justify-end gap-3 pt-4 border-t border-white/5">
+                <Button variant="outline" onClick={() => setIsPreviewOpen(false)} className="border-white/10 text-white hover:bg-white/5">
+                  Fermer
+                </Button>
+                <Button className="bg-orange-accent text-night font-bold hover:bg-orange-accent/90">
+                  <Download className="h-4 w-4 mr-2" />
+                  Télécharger PDF
+                </Button>
               </div>
             </div>
           )}
-          <div className="p-4 bg-night/5 border-t flex justify-end gap-3 print:hidden">
-            <Button variant="outline" onClick={() => setIsPreviewOpen(false)}>Fermer</Button>
-            <Button className="bg-orange-accent text-night font-bold" onClick={handlePrint}>
-              <Printer className="h-4 w-4 mr-2" /> Télécharger / Imprimer
-            </Button>
-          </div>
         </DialogContent>
       </Dialog>
     </div>
   );
 }
-
