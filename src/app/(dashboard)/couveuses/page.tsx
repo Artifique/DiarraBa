@@ -1,0 +1,205 @@
+"use client";
+
+import { useState } from "react";
+import { motion } from "framer-motion";
+import { 
+  Box, 
+  Plus, 
+  Search, 
+  Zap,
+  Activity,
+  History,
+  Trash2
+} from "lucide-react";
+import { cn } from "@/lib/utils";
+import { 
+  Dialog, 
+  DialogContent, 
+  DialogHeader, 
+  DialogTitle, 
+  DialogTrigger,
+  DialogDescription,
+  DialogFooter
+} from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+
+const initialCouveuses = [
+  { id: 1, modele: "Couveuse Automatique 1000", capacite: 1000, prix: 50, fournisseur: "Ferme Nationale", disponible: true },
+  { id: 2, modele: "Couveuse Semi-Auto 500", capacite: 500, prix: 30, fournisseur: "Élevage Premium", disponible: false },
+  { id: 3, modele: "Couveuse Manuelle 200", capacite: 200, prix: 15, fournisseur: "Volailles du Sud", disponible: true },
+];
+
+export default function CouveusesPage() {
+  const [couveuses, setCouveuses] = useState(initialCouveuses);
+  const [isOpen, setIsOpen] = useState(false);
+  const [newCouveuse, setNewCouveuse] = useState({ modele: "", capacite: "", prix: "", fournisseur: "" });
+
+  const handleAdd = () => {
+    if (!newCouveuse.modele) return;
+    const item = {
+      id: Date.now(),
+      modele: newCouveuse.modele,
+      capacite: parseInt(newCouveuse.capacite) || 0,
+      prix: parseInt(newCouveuse.prix) || 0,
+      fournisseur: newCouveuse.fournisseur,
+      disponible: true
+    };
+    setCouveuses([item, ...couveuses]);
+    setIsOpen(false);
+    setNewCouveuse({ modele: "", capacite: "", prix: "", fournisseur: "" });
+  };
+
+  const handleDelete = (id: number) => {
+    setCouveuses(couveuses.filter(c => c.id !== id));
+  };
+
+  return (
+    <div className="space-y-6">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div>
+          <h2 className="text-2xl font-display font-bold text-white">Gestion des Couveuses</h2>
+          <p className="text-sm text-muted-foreground">Suivi de la disponibilité et location des équipements d'incubation.</p>
+        </div>
+
+        <Dialog open={isOpen} onOpenChange={setIsOpen}>
+          <DialogTrigger asChild>
+            <Button className="bg-orange-accent text-night font-bold hover:bg-orange-accent/90 orange-glow-hover rounded-xl">
+              <Plus className="h-5 w-5 mr-2" />
+              Ajouter une Couveuse
+            </Button>
+          </DialogTrigger>
+          <DialogContent className="bg-night border-white/10 text-white sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle className="text-white font-display text-xl">Nouvelle Couveuse</DialogTitle>
+              <DialogDescription className="text-muted-foreground">
+                Ajoutez un nouvel équipement à votre parc.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="grid gap-6 py-4">
+              <div className="space-y-2">
+                <Label className="text-xs uppercase tracking-widest font-bold text-white/70">Modèle / Nom</Label>
+                <Input 
+                  value={newCouveuse.modele}
+                  onChange={(e) => setNewCouveuse({...newCouveuse, modele: e.target.value})}
+                  className="bg-white/5 border-white/10 text-white" 
+                  placeholder="Ex: Automatique 500" 
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label className="text-xs uppercase tracking-widest font-bold text-white/70">Capacité (œufs)</Label>
+                  <Input 
+                    type="number"
+                    value={newCouveuse.capacite}
+                    onChange={(e) => setNewCouveuse({...newCouveuse, capacite: e.target.value})}
+                    className="bg-white/5 border-white/10 text-white" 
+                    placeholder="0" 
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-xs uppercase tracking-widest font-bold text-white/70">Prix / Jour (FCFA)</Label>
+                  <Input 
+                    type="number"
+                    value={newCouveuse.prix}
+                    onChange={(e) => setNewCouveuse({...newCouveuse, prix: e.target.value})}
+                    className="bg-white/5 border-white/10 text-white" 
+                    placeholder="0" 
+                  />
+                </div>
+              </div>
+              <div className="space-y-2">
+                <Label className="text-xs uppercase tracking-widest font-bold text-white/70">Fournisseur</Label>
+                <Input 
+                  value={newCouveuse.fournisseur}
+                  onChange={(e) => setNewCouveuse({...newCouveuse, fournisseur: e.target.value})}
+                  className="bg-white/5 border-white/10 text-white" 
+                  placeholder="Nom du fournisseur" 
+                />
+              </div>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setIsOpen(false)} className="border-white/10 text-white hover:bg-white/5">
+                Annuler
+              </Button>
+              <Button onClick={handleAdd} className="bg-orange-accent text-night font-bold hover:bg-orange-accent/90">
+                Enregistrer
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {couveuses.map((c, i) => (
+          <motion.div 
+            layout
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            key={c.id} 
+            className="glass-card rounded-2xl overflow-hidden group border-white/5 hover:border-orange-accent/30 transition-all"
+          >
+            <div className="p-6">
+              <div className="flex justify-between items-start mb-6">
+                <div className="h-14 w-14 rounded-2xl bg-night flex items-center justify-center border border-white/10 group-hover:scale-110 transition-transform">
+                  <Box className="h-7 w-7 text-orange-accent" />
+                </div>
+                <div className="flex gap-2">
+                  <div className={cn(
+                    "px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-widest",
+                    c.disponible ? "bg-forest-green/10 text-forest-green border border-forest-green/20" : "bg-destructive/10 text-destructive border border-destructive/20"
+                  )}>
+                    {c.disponible ? "Disponible" : "Occupée"}
+                  </div>
+                  <button 
+                    onClick={() => handleDelete(c.id)}
+                    className="p-1 text-muted-foreground hover:text-destructive transition-colors"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </button>
+                </div>
+              </div>
+
+              <h3 className="text-lg font-display font-bold text-white mb-1">{c.modele}</h3>
+              <p className="text-xs text-muted-foreground mb-6">Fournisseur : {c.fournisseur}</p>
+
+              <div className="grid grid-cols-2 gap-4 mb-6">
+                <div className="bg-white/5 p-3 rounded-xl border border-white/5">
+                  <p className="text-[10px] text-muted-foreground uppercase tracking-widest font-bold mb-1">Capacité</p>
+                  <div className="flex items-center text-white font-mono font-bold">
+                    <Zap className="h-3 w-3 mr-1 text-orange-accent" />
+                    {c.capacite} <span className="text-[10px] ml-1 text-muted-foreground">œufs</span>
+                  </div>
+                </div>
+                <div className="bg-white/5 p-3 rounded-xl border border-white/5">
+                  <p className="text-[10px] text-muted-foreground uppercase tracking-widest font-bold mb-1">Prix / jour</p>
+                  <p className="text-white font-mono font-bold">{c.prix} <span className="text-[10px] text-muted-foreground">FCFA</span></p>
+                </div>
+              </div>
+
+              <div className="flex gap-2">
+                <button className="flex-1 py-2.5 text-xs font-bold bg-white/5 hover:bg-white/10 text-white rounded-xl transition-colors flex items-center justify-center">
+                  <Activity className="h-3 w-3 mr-2" />
+                  État
+                </button>
+                <button className="flex-1 py-2.5 text-xs font-bold bg-orange-accent/10 hover:bg-orange-accent text-orange-accent hover:text-night rounded-xl transition-all flex items-center justify-center">
+                  <History className="h-3 w-3 mr-2" />
+                  Historique
+                </button>
+              </div>
+            </div>
+          </motion.div>
+        ))}
+      </div>
+    </div>
+  );
+}
+

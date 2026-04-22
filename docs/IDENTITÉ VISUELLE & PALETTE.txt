@@ -1,0 +1,219 @@
+🖼️ IDENTITÉ VISUELLE & PALETTE
+Extraite du logo Diarraba :
+
+Primaire : #1B2A6B (bleu marine profond — fond du logo)
+Accent chaud : #F5A623 (orange soleil — cercle du logo)
+Vert nature : #2D6A2D (vert palmier — feuilles)
+Blanc pur : #FFFFFF (texte logo)
+Fond app : #0F1D4E (bleu nuit légèrement plus sombre)
+Surface/Card : #1E3170 (bleu card avec opacité)
+Texte secondaire : #A8B8E8 (bleu clair désaturé)
+Succès : #4CAF50 | Erreur : #EF5350 | Avertissement : #FFB300
+
+
+🧭 ARCHITECTURE DE L'APPLICATION
+Pages principales :
+/dashboard          → Vue d'ensemble (Manager)
+/clients            → Gestion clients
+/fournisseurs       → Gestion fournisseurs
+/volailles          → Catalogue volailles
+/couveuses          → Gestion couveuses
+/reservations       → Réservations & commandes
+/paiements          → Suivi paiements
+/livraisons         → Suivi livraisons
+/factures           → Factures & PDF
+/notifications      → Centre de notifications
+/audit              → Journal d'audit
+/settings           → Paramètres
+
+🎯 PROMPT DE GÉNÉRATION D'INTERFACE
+Design a modern, premium farm management web application called "Diarraba Volailles" 
+built with Next.js 14 (App Router), Tailwind CSS, shadcn/ui, and Framer Motion.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━
+VISUAL IDENTITY
+━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Brand colors extracted from logo:
+- Deep navy primary: #1B2A6B
+- Warm orange accent: #F5A623  
+- Forest green: #2D6A2D
+- Night background: #0F1D4E
+- Card surfaces: rgba(30, 49, 112, 0.85)
+- Light text: #A8B8E8
+
+Typography:
+- Display headings: "Playfair Display" or "Cormorant Garamond" (elegant, premium)
+- UI labels & body: "DM Sans" or "Outfit" (clean, modern)
+- Numbers/stats: "JetBrains Mono" (monospaced for financial data)
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━
+GLOBAL DESIGN LANGUAGE
+━━━━━━━━━━━━━━━━━━━━━━━━━━━
+- Dark theme with deep navy base (#0F1D4E)
+- Glassmorphism cards: backdrop-blur + semi-transparent navy surfaces
+- Orange (#F5A623) as THE accent — buttons, badges, highlights, icons
+- Subtle mesh gradient backgrounds: radial gradients mixing navy + dark teal
+- Grain texture overlay (SVG noise) at 3% opacity for depth
+- Warm orange glow effects on hover states and active elements
+- Green (#2D6A2D) used only for "success", "available", "paid" statuses
+- Smooth page transitions with Framer Motion (fade + slide up, 300ms)
+- Micro-interactions: card lifts on hover (translateY -4px + shadow)
+- Consistent 8px border radius on cards, 6px on buttons
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━
+SIDEBAR NAVIGATION
+━━━━━━━━━━━━━━━━━━━━━━━━━━━
+- Fixed left sidebar, 260px wide
+- Top: Diarraba logo (palm tree + sun icon) + "VOLAILLES" label
+- Navigation groups with section labels:
+  ▸ TABLEAU DE BORD → Dashboard
+  ▸ GESTION → Clients, Fournisseurs
+  ▸ INVENTAIRE → Volailles, Couveuses  
+  ▸ TRANSACTIONS → Réservations, Paiements, Livraisons, Factures
+  ▸ SYSTÈME → Notifications (badge count), Audit, Paramètres
+- Active item: orange left border (4px) + orange text + subtle orange bg glow
+- Icons: Lucide React, 20px, with labels
+- Bottom: Manager avatar + name + logout
+- Mobile: slide-over drawer with overlay
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━
+DASHBOARD PAGE
+━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Top header:
+- "Bonjour, [Manager Name] 👋" in Playfair Display
+- Date du jour + weather-like status ("12 réservations aujourd'hui")
+- Quick action button: "+ Nouvelle Réservation" (orange gradient pill)
+
+KPI Cards row (4 cards, glassmorphism):
+1. 💰 Chiffre d'affaires du mois → large number in JetBrains Mono + trend arrow
+2. 🐔 Volailles disponibles → count + sparkline bar
+3. 📦 Réservations en cours → count + color-coded status breakdown
+4. 🥚 Couveuses actives → count + availability percentage ring
+
+Charts section (2 columns):
+- Left: Area chart — revenus 6 derniers mois (orange fill, navy grid)
+- Right: Donut chart — répartition par type de volaille (warm palette)
+
+Recent activity table:
+- Latest 5 reservations with: client name, type, amount, status badge, actions
+- Status badges: color-coded pills (orange=En attente, green=Confirmée, red=Annulée)
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━
+DATA TABLES (all pages)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━
+- Sticky header on scroll
+- Zebra striping: alternating navy shades (0.04 opacity difference)
+- Row hover: subtle orange tint left border flash
+- Sortable columns with animated sort indicators
+- Inline action buttons: Edit (pencil icon), Delete (trash, red on hover), View
+- Pagination: clean numbered + prev/next
+- Search bar with real-time filter + filter chips (status, date range, type)
+- Export to CSV/PDF button (top right)
+- Empty state: palm tree illustration + helpful message
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━
+RESERVATIONS PAGE (most complex)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Split view:
+- Left (65%): Table of all reservations with advanced filters
+- Right (35%): Detail panel (slides in from right when row selected)
+
+Reservation detail panel:
+- Client info card (avatar initials, contact details)
+- Items ordered: volailles + couveuses with quantities and prices
+- Payment tracker: visual progress bar showing % paid
+  "Payé: 75 000 FCFA / Total: 100 000 FCFA" with segmented bar
+- Status timeline: vertical steps (Créée → Confirmée → Livrée → Payée)
+- Action buttons: Confirmer, Générer Facture, Marquer Livré
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FORMS & MODALS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━
+- Slide-up sheet (shadcn Sheet) for create/edit forms
+- Fields: floating label style, orange focus ring
+- Dropdowns: custom styled with Radix UI, matching dark theme
+- Date pickers: dark-themed calendar, orange selected day
+- Number inputs for prices: auto-format as FCFA currency
+- Validation: inline errors below fields (red, animated shake)
+- Submit button: full-width orange gradient with loading spinner
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━
+NOTIFICATIONS CENTER
+━━━━━━━━━━━━━━━━━━━━━━━━━━━
+- Bell icon in top bar with unread count badge (orange)
+- Dropdown panel (400px wide): scrollable list
+- Each notification: icon (colored by type) + message + time ago + read/unread dot
+- Types: 🟠 Nouvelle réservation, 🟢 Paiement reçu, 🔴 Stock bas, 🔵 Livraison
+- "Tout marquer comme lu" action at top
+- Empty state with animated bell
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━
+VOLAILLES INVENTORY PAGE
+━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Grid + List toggle view:
+- Grid: cards with poultry type icon/emoji, quantity badge (green=ok, red=low),
+  price per unit, "Ajouter au stock" quick action
+- List: standard data table
+- Stock alert banner: "⚠️ 3 types en stock bas" (orange dismissible banner)
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FACTURES PAGE
+━━━━━━━━━━━━━━━━━━━━━━━━━━━
+- Status filter tabs: Toutes | Payées | Partielles | En attente | Annulées
+- Each invoice row: invoice number, client, date, amount, status badge, PDF button
+- Preview modal: clean invoice layout with Diarraba branding
+  (logo top-left, blue header, itemized table, total, payment status watermark)
+- "Télécharger PDF" button generates styled invoice
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━
+RESPONSIVE BEHAVIOR
+━━━━━━━━━━━━━━━━━━━━━━━━━━━
+- Desktop (1280px+): Full sidebar + content area
+- Tablet (768-1279px): Collapsed sidebar (icons only, tooltip labels)
+- Mobile (<768px): Bottom tab bar (5 main sections) + hamburger for full menu
+- Tables on mobile: Card-style view (each row becomes a card)
+- Touch-friendly: 44px minimum tap targets
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ANIMATIONS & POLISH
+━━━━━━━━━━━━━━━━━━━━━━━━━━━
+- Page load: staggered card entrance (each card fades+slides up with 80ms delay)
+- KPI numbers: count-up animation on mount (0 → final value, 1.2s ease-out)
+- Charts: draw-on animation (Recharts animationDuration=1500)
+- Status badge changes: pulse animation (1 pulse when status updates)
+- Sidebar hover: item slides 4px right on hover
+- Orange glow pulse on notification badge when new notification arrives
+- Loading skeleton: animated shimmer in navy tones (not white)
+- Toast notifications: slide from top-right, auto-dismiss 4s (react-hot-toast)
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━
+TECH STACK DETAILS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━
+- Next.js 14 App Router + Server Components where possible
+- Supabase: auth (email/password), database, real-time subscriptions
+  (réservations table → live updates on dashboard)
+- Tailwind CSS + custom design tokens in tailwind.config.ts
+- shadcn/ui components (themed to dark navy)
+- Framer Motion for page transitions and entrance animations
+- Recharts for all data visualizations
+- React Hook Form + Zod for form validation
+- @react-pdf/renderer for invoice PDF generation
+- date-fns for date formatting (French locale)
+- Lucide React for all icons
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━
+SUPABASE REALTIME
+━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Subscribe to:
+- reservations table → update dashboard KPIs live
+- notifications table → update bell badge live
+- paiements table → update invoice status live
+Show a subtle "● Live" green dot indicator in the header when connected
+
+💡 Conseils d'implémentation prioritaires
+
+Commencez par le layout (sidebar + header + main) avec les tokens de couleurs
+Dashboard en premier — c'est la vitrine, ça valide tout le design system
+Réservations ensuite — c'est la page la plus utilisée
+Utilisez shadcn/ui npx shadcn@latest init avec le thème dark comme base puis surchargez vers le bleu marine
+Supabase RLS dès le début pour sécuriser par rôle (manager vs client vs fournisseur)
