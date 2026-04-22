@@ -7,10 +7,21 @@ import {
   Package, 
   Activity,
   ArrowUpRight,
-  ArrowDownRight
+  ArrowDownRight,
+  LucideIcon
 } from "lucide-react";
 
-const stats = [
+type Stat = {
+  name: string;
+  value: string;
+  trend: string;
+  trendUp: boolean;
+  icon: LucideIcon;
+  color: string;
+  bg: string;
+};
+
+const stats: Stat[] = [
   {
     name: "Chiffre d'affaires",
     value: "1 250 000 FCFA",
