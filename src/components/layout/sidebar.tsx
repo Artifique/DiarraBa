@@ -1,25 +1,34 @@
 "use client";
 
+import React from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import Image from "next/image";
-import { 
-  LayoutDashboard, 
-  Users, 
-  Truck, 
-  Bird, 
-  Box, 
-  CalendarCheck, 
-  CreditCard, 
-  FileText, 
-  Bell, 
-  History, 
+import {
+  LayoutDashboard,
+  Users,
+  Truck,
+  Bird,
+  Box,
+  CalendarCheck,
+  CreditCard,
+  FileText,
+  Bell,
+  History,
   Settings,
-  LogOut
+  LogOut,
+  LucideIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-const navigation = [
+type NavItem = {
+  name: string;
+  href?: string;
+  icon?: LucideIcon;
+  group?: boolean;
+};
+
+const navigation: NavItem[] = [
   { name: "TABLEAU DE BORD", group: true },
   { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
   { name: "GESTION", group: true },
@@ -45,9 +54,9 @@ export function Sidebar() {
     <div className="flex h-full w-[260px] flex-col bg-night/95 backdrop-blur-xl border-r border-white/5 fixed left-0 top-0 z-40">
       <div className="flex h-24 items-center px-6 gap-3">
         <div className="relative h-12 w-12 rounded-xl overflow-hidden border border-orange-accent/30 orange-glow">
-          <Image 
-            src="/logo.jpeg" 
-            alt="Diarraba Logo" 
+          <Image
+            src="/logo.jpeg"
+            alt="Diarraba Logo"
             fill
             className="object-cover"
           />
@@ -67,8 +76,8 @@ export function Sidebar() {
           {navigation.map((item) => {
             if (item.group) {
               return (
-                <div 
-                  key={item.name} 
+                <div
+                  key={item.name}
                   className="px-3 py-2 text-[10px] font-bold tracking-widest text-muted-foreground/60 mt-4 first:mt-0"
                 >
                   {item.name}
@@ -77,6 +86,7 @@ export function Sidebar() {
             }
 
             const isActive = pathname === item.href;
+            const Icon = item.icon!;
 
             return (
               <Link
@@ -84,18 +94,22 @@ export function Sidebar() {
                 href={item.href!}
                 className={cn(
                   "group flex items-center px-3 py-2.5 text-sm font-medium rounded-md transition-all duration-300 relative overflow-hidden",
-                  isActive 
-                    ? "text-white bg-orange-accent/10" 
-                    : "text-foreground/70 hover:text-white hover:bg-white/5"
+                  isActive
+                    ? "text-white bg-orange-accent/10"
+                    : "text-foreground/70 hover:text-white hover:bg-white/5",
                 )}
               >
                 {isActive && (
                   <div className="absolute left-0 top-0 bottom-0 w-1 bg-orange-accent shadow-[0_0_10px_rgba(245,166,35,0.8)]" />
                 )}
-                <item.icon className={cn(
-                  "mr-3 h-5 w-5 transition-colors duration-300",
-                  isActive ? "text-orange-accent" : "text-foreground/40 group-hover:text-orange-accent/70"
-                )} />
+                <Icon
+                  className={cn(
+                    "mr-3 h-5 w-5 transition-colors duration-300",
+                    isActive
+                      ? "text-orange-accent"
+                      : "text-foreground/40 group-hover:text-orange-accent/70",
+                  )}
+                />
                 {item.name}
               </Link>
             );
@@ -109,8 +123,12 @@ export function Sidebar() {
             AD
           </div>
           <div className="ml-3 overflow-hidden">
-            <p className="text-xs font-medium text-white truncate">Admin Manager</p>
-            <p className="text-[10px] text-muted-foreground truncate">admin@volaille.com</p>
+            <p className="text-xs font-medium text-white truncate">
+              Admin Manager
+            </p>
+            <p className="text-[10px] text-muted-foreground truncate">
+              admin@volaille.com
+            </p>
           </div>
         </div>
         <button className="flex w-full items-center px-3 py-2 text-sm font-medium text-destructive hover:bg-destructive/10 rounded-md transition-colors">
