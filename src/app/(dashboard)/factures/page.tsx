@@ -33,10 +33,19 @@ const initialFactures = [
 export default function FacturesPage() {
   const [selectedFacture, setSelectedFacture] = useState<typeof initialFactures[0] | null>(null);
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [activeTab, setActiveTab] = useState("Toutes");
 
   const handlePrint = () => {
     window.print();
   };
+
+  const filteredFactures = initialFactures.filter(f => {
+    const matchesSearch = f.client.toLowerCase().includes(searchQuery.toLowerCase()) || 
+                         f.id.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesTab = activeTab === "Toutes" || f.statut === activeTab;
+    return matchesSearch && matchesTab;
+  });
 
   return (
     <div className="space-y-6">
@@ -54,79 +63,113 @@ export default function FacturesPage() {
         </button>
       </div>
 
-      <div className="flex gap-4 overflow-x-auto pb-2 custom-scrollbar">
-        {["Toutes", "Payées", "Partielles", "Emises", "Brouillons"].map((tab, i) => (
-          <button 
-            key={tab}
-            className={cn(
-              "px-6 py-2 rounded-full text-xs font-bold whitespace-nowrap transition-all border",
-              i === 0 ? "bg-orange-accent text-night border-orange-accent" : "bg-white/5 text-muted-foreground border-white/5 hover:border-white/20"
-            )}
-          >
-            {tab}
-          </button>
-        ))}
+      <div className="flex flex-col lg:flex-row gap-4 justify-between items-start lg:items-center">
+        <div className="flex gap-2 overflow-x-auto pb-2 lg:pb-0 custom-scrollbar w-full lg:w-auto">
+          {["Toutes", "Payee", "Partielle", "Emise", "Brouillon"].map((tab) => (
+            <button 
+              key={tab}
+              onClick={() => setActiveTab(tab)}
+              className={cn(
+                "px-5 py-2 rounded-full text-[10px] font-bold uppercase tracking-wider transition-all border",
+                activeTab === tab 
+                  ? "bg-orange-accent text-night border-orange-accent shadow-[0_0_15px_rgba(245,166,35,0.3)]" 
+                  : "bg-white/5 text-muted-foreground border-white/5 hover:border-white/20"
+              )}
+            >
+              {tab === "Payee" ? "Payées" : tab === "Partielle" ? "Partielles" : tab === "Emise" ? "Émises" : tab === "Brouillon" ? "Brouillons" : tab}
+            </button>
+          ))}
+        </div>
+
+        <div className="relative w-full lg:w-72">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <input 
+            type="text"
+            placeholder="Rechercher une facture..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="w-full bg-white/5 border border-white/10 rounded-xl py-2 pl-10 pr-4 text-sm text-white focus:outline-none focus:ring-2 focus:ring-orange-accent/50 focus:border-orange-accent/50 transition-all"
+          />
+        </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {initialFactures.map((f, i) => (
-          <motion.div 
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: i * 0.1 }}
-            key={f.id} 
-            className="glass-card p-6 rounded-2xl border border-white/5 group hover:border-orange-accent/30 transition-all relative overflow-hidden"
-          >
-            <div className="flex justify-between items-start mb-6">
-              <div className="h-12 w-12 rounded-xl bg-night flex items-center justify-center border border-white/10">
-                <FileText className="h-6 w-6 text-orange-accent" />
-              </div>
-              <div className={cn(
-                "px-2 py-1 rounded-full text-[10px] font-bold uppercase tracking-widest border",
-                f.statut === "Payee" ? "bg-forest-green/10 text-forest-green border-forest-green/20" : 
-                f.statut === "Partielle" ? "bg-blue-400/10 text-blue-400 border-blue-400/20" : 
-                f.statut === "Emise" ? "bg-orange-accent/10 text-orange-accent border-orange-accent/20" :
-                "bg-white/5 text-muted-foreground border-white/10"
-              )}>
-                {f.statut}
-              </div>
-            </div>
-
-            <div className="space-y-1 mb-6">
-              <h4 className="text-white font-bold">{f.id}</h4>
-              <p className="text-xs text-muted-foreground">{f.client}</p>
-              <p className="text-[10px] text-muted-foreground/60">{f.date}</p>
-            </div>
-
-            <div className="p-4 bg-white/5 rounded-xl border border-white/5 mb-6">
-              <div className="flex justify-between items-center mb-2">
-                <span className="text-[10px] text-muted-foreground uppercase font-bold">Montant Total</span>
-                <span className="text-sm font-mono font-bold text-white">{f.montant.toLocaleString()} FCFA</span>
-              </div>
-              <div className="flex justify-between items-center">
-                <span className="text-[10px] text-muted-foreground uppercase font-bold">Reste à payer</span>
-                <span className="text-sm font-mono font-bold text-orange-accent">{(f.montant - f.paye).toLocaleString()} FCFA</span>
-              </div>
-            </div>
-
-            <div className="flex gap-2">
-              <button 
-                onClick={() => { setSelectedFacture(f); setIsPreviewOpen(true); }}
-                className="flex-1 py-2 bg-white/5 hover:bg-white/10 rounded-lg text-xs font-bold text-white transition-colors flex items-center justify-center"
-              >
-                <Eye className="h-3.5 w-3.5 mr-2" />
-                Voir
-              </button>
-              <button 
-                onClick={() => { setSelectedFacture(f); handlePrint(); }}
-                className="flex-1 py-2 bg-orange-accent/10 hover:bg-orange-accent text-orange-accent hover:text-night rounded-lg text-xs font-bold transition-all flex items-center justify-center"
-              >
-                <Download className="h-3.5 w-3.5 mr-2" />
-                PDF
-              </button>
-            </div>
-          </motion.div>
-        ))}
+      <div className="glass-card rounded-2xl border border-white/5 overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="w-full text-left">
+            <thead>
+              <tr className="border-b border-white/5 bg-white/[0.02] text-[10px] uppercase tracking-[0.15em] text-muted-foreground font-bold">
+                <th className="px-6 py-4">ID Facture</th>
+                <th className="px-6 py-4">Client</th>
+                <th className="px-6 py-4">Date</th>
+                <th className="px-6 py-4">Montant Total</th>
+                <th className="px-6 py-4">Montant Payé</th>
+                <th className="px-6 py-4">Reste</th>
+                <th className="px-6 py-4">Statut</th>
+                <th className="px-6 py-4 text-right">Actions</th>
+              </tr>
+            </thead>
+            <tbody className="text-sm divide-y divide-white/5">
+              {filteredFactures.length > 0 ? filteredFactures.map((f, i) => (
+                <motion.tr 
+                  initial={{ opacity: 0, x: -10 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: i * 0.05 }}
+                  key={f.id} 
+                  className="group hover:bg-white/[0.02] transition-colors"
+                >
+                  <td className="px-6 py-4 font-mono font-medium text-white">{f.id}</td>
+                  <td className="px-6 py-4">
+                    <div className="flex items-center">
+                      <div className="h-8 w-8 rounded-full bg-orange-accent/10 flex items-center justify-center text-[10px] font-bold text-orange-accent mr-3 border border-orange-accent/20">
+                        {f.client.split(' ').map(n => n[0]).join('')}
+                      </div>
+                      <span className="text-white font-medium">{f.client}</span>
+                    </div>
+                  </td>
+                  <td className="px-6 py-4 text-muted-foreground text-xs">{f.date}</td>
+                  <td className="px-6 py-4 font-mono font-medium text-white">{f.montant.toLocaleString()} FCFA</td>
+                  <td className="px-6 py-4 font-mono text-forest-green">{f.paye.toLocaleString()} FCFA</td>
+                  <td className="px-6 py-4 font-mono font-bold text-orange-accent">{(f.montant - f.paye).toLocaleString()} FCFA</td>
+                  <td className="px-6 py-4">
+                    <span className={cn(
+                      "px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-widest border",
+                      f.statut === "Payee" ? "bg-forest-green/10 text-forest-green border-forest-green/20" : 
+                      f.statut === "Partielle" ? "bg-blue-400/10 text-blue-400 border-blue-400/20" : 
+                      f.statut === "Emise" ? "bg-orange-accent/10 text-orange-accent border-orange-accent/20" :
+                      "bg-white/5 text-muted-foreground border-white/10"
+                    )}>
+                      {f.statut}
+                    </span>
+                  </td>
+                  <td className="px-6 py-4 text-right">
+                    <div className="flex justify-end gap-2">
+                      <button 
+                        onClick={() => { setSelectedFacture(f); setIsPreviewOpen(true); }}
+                        className="p-2 bg-white/5 hover:bg-white/10 rounded-lg text-white transition-colors"
+                        title="Voir la facture"
+                      >
+                        <Eye className="h-4 w-4" />
+                      </button>
+                      <button 
+                        onClick={() => { setSelectedFacture(f); handlePrint(); }}
+                        className="p-2 bg-orange-accent/10 hover:bg-orange-accent hover:text-night rounded-lg text-orange-accent transition-all"
+                        title="Télécharger PDF"
+                      >
+                        <Download className="h-4 w-4" />
+                      </button>
+                    </div>
+                  </td>
+                </motion.tr>
+              )) : (
+                <tr>
+                  <td colSpan={8} className="px-6 py-12 text-center text-muted-foreground italic">
+                    Aucune facture trouvée correspondant à votre recherche.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
       </div>
 
       {/* Modale d'aperçu de facture */}
