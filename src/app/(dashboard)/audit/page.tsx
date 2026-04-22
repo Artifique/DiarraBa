@@ -10,6 +10,9 @@ import {
   Monitor
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useState, useEffect } from "react";
+import { Pagination } from "@/components/ui/pagination";
+import { DateFilter } from "@/components/ui/date-filter";
 
 const logsMock = [
   { id: 1, action: "UPDATE", entite: "volailles", manager: "Admin Manager", date: "22 Avr 2024 10:45", ip: "192.168.1.1", details: "Modification stock Poussin (+500)" },
@@ -19,7 +22,37 @@ const logsMock = [
 ];
 
 export default function AuditPage() {
-  return (
+  const [logs, setLogs] = useState(logsMock);
+
+  // Pagination and filtering
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage] = useState(10);
+  const [dateFilter, setDateFilter] = useState("");
+  const [searchTerm, setSearchTerm] = useState("");
+
+  // Filtered and paginated logs
+  const filteredLogs = logs.filter((log) => {
+    const matchesSearch =
+      log.action.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      log.entite.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      log.manager.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      log.details.toLowerCase().includes(searchTerm.toLowerCase());
+
+    const matchesDate = !dateFilter || log.date.includes(dateFilter);
+
+    return matchesSearch && matchesDate;
+  });
+
+  const totalPages = Math.ceil(filteredLogs.length / itemsPerPage);
+  const paginatedLogs = filteredLogs.slice(
+    (currentPage - 1) * itemsPerPage,
+    currentPage * itemsPerPage
+  );
+
+  // Reset to first page when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, dateFilter]);
     <div className="space-y-6">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
@@ -40,13 +73,17 @@ export default function AuditPage() {
           <input 
             type="text" 
             placeholder="Rechercher par action, entité ou gérant..." 
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
             className="w-full h-10 bg-night/50 border border-white/10 rounded-xl pl-10 pr-4 text-sm focus:outline-none focus:ring-1 focus:ring-orange-accent/50"
           />
         </div>
-        <button className="flex items-center px-4 py-2 text-xs font-medium bg-white/5 hover:bg-white/10 rounded-lg border border-white/10 transition-colors">
-          <Filter className="h-4 w-4 mr-2 text-orange-accent" />
-          Période
-        </button>
+        <DateFilter
+          value={dateFilter}
+          onChange={setDateFilter}
+          placeholder="Filtrer par date"
+          className="max-w-xs"
+        />
       </div>
 
       <div className="glass-card rounded-2xl overflow-hidden border border-white/5">
@@ -61,7 +98,7 @@ export default function AuditPage() {
             </tr>
           </thead>
           <tbody className="divide-y divide-white/5">
-            {logsMock.map((log) => (
+            {paginatedLogs.map((log) => (
               <tr key={log.id} className="group hover:bg-white/[0.02] transition-colors">
                 <td className="px-6 py-4">
                   <div className="flex items-center gap-3">
@@ -98,6 +135,17 @@ export default function AuditPage() {
             ))}
           </tbody>
         </table>
+
+        {/* Pagination */}
+        {totalPages > 1 && (
+          <div className="px-6 py-4 border-t border-white/5">
+            <Pagination
+              currentPage={currentPage}
+              totalPages={totalPages}
+              onPageChange={setCurrentPage}
+            />
+          </div>
+        )}
       </div>
     </div>
   );
