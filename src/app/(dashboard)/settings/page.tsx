@@ -1,5 +1,6 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { 
   Settings, 
@@ -7,11 +8,73 @@ import {
   Building2, 
   Bell, 
   Save,
-  Camera
+  Camera,
+  Loader2
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { createClient } from "@/lib/supabase";
+import { ManagerModel } from "@/lib/models";
+import { Manager } from "@/types/database";
 
 export default function SettingsPage() {
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [manager, setManager] = useState<Manager | null>(null);
+  const [formData, setFormData] = useState({
+    nom: "",
+    email: "",
+    telephone: ""
+  });
+
+  useEffect(() => {
+    const fetchManager = async () => {
+      try {
+        const supabase = createClient();
+        const model = new ManagerModel(supabase);
+        const data = await model.findFirst();
+        if (data) {
+          setManager(data);
+          setFormData({
+            nom: data.nom,
+            email: data.email,
+            telephone: data.telephone
+          });
+        }
+      } catch (error) {
+        console.error("Error fetching manager:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchManager();
+  }, []);
+
+  const handleSave = async () => {
+    if (!manager) return;
+    setSaving(true);
+    try {
+      const supabase = createClient();
+      const model = new ManagerModel(supabase);
+      const updated = await model.update(manager.id, formData);
+      setManager(updated);
+      alert("Paramètres enregistrés avec succès !");
+    } catch (error) {
+      console.error("Error updating settings:", error);
+      alert("Erreur lors de l'enregistrement.");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="h-[80vh] flex items-center justify-center">
+        <Loader2 className="animate-spin h-12 w-12 border-b-2 border-orange-accent text-orange-accent" />
+      </div>
+    );
+  }
+
   return (
     <div className="max-w-5xl mx-auto space-y-8 pb-12">
       <div className="flex items-center gap-3">
@@ -58,16 +121,20 @@ export default function SettingsPage() {
             <div className="space-y-6">
               <div className="flex items-center justify-between border-b border-white/5 pb-4">
                 <h3 className="font-display font-bold text-white text-lg">Informations Personnelles</h3>
-                <button className="flex items-center gap-2 px-4 py-2 bg-orange-accent/10 hover:bg-orange-accent text-orange-accent hover:text-night text-xs font-bold rounded-lg transition-all">
-                  <Save className="h-3.5 w-3.5" />
-                  Enregistrer
+                <button 
+                  onClick={handleSave}
+                  disabled={saving}
+                  className="flex items-center gap-2 px-4 py-2 bg-orange-accent/10 hover:bg-orange-accent text-orange-accent hover:text-night text-xs font-bold rounded-lg transition-all disabled:opacity-50"
+                >
+                  {saving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />}
+                  {saving ? "Enregistrement..." : "Enregistrer"}
                 </button>
               </div>
 
               <div className="flex flex-col md:flex-row gap-8 items-center md:items-start">
                 <div className="relative group">
                   <div className="h-24 w-24 rounded-full bg-primary flex items-center justify-center text-2xl font-bold text-white border-2 border-orange-accent overflow-hidden">
-                    AD
+                    {formData.nom.charAt(0)}
                   </div>
                   <button className="absolute bottom-0 right-0 p-1.5 bg-orange-accent text-night rounded-full border-2 border-night hover:scale-110 transition-transform">
                     <Camera className="h-3.5 w-3.5" />
@@ -79,7 +146,8 @@ export default function SettingsPage() {
                     <label className="text-[10px] text-muted-foreground uppercase font-bold tracking-widest px-1">Nom complet</label>
                     <input 
                       type="text" 
-                      defaultValue="Admin Manager"
+                      value={formData.nom}
+                      onChange={(e) => setFormData({ ...formData, nom: e.target.value })}
                       className="w-full h-11 bg-white/5 border border-white/10 rounded-xl px-4 text-sm text-white focus:outline-none focus:ring-1 focus:ring-orange-accent/50"
                     />
                   </div>
@@ -87,7 +155,8 @@ export default function SettingsPage() {
                     <label className="text-[10px] text-muted-foreground uppercase font-bold tracking-widest px-1">Email professionnel</label>
                     <input 
                       type="email" 
-                      defaultValue="admin@volaille.com"
+                      value={formData.email}
+                      onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                       className="w-full h-11 bg-white/5 border border-white/10 rounded-xl px-4 text-sm text-white focus:outline-none focus:ring-1 focus:ring-orange-accent/50"
                     />
                   </div>
@@ -95,7 +164,8 @@ export default function SettingsPage() {
                     <label className="text-[10px] text-muted-foreground uppercase font-bold tracking-widest px-1">Téléphone</label>
                     <input 
                       type="tel" 
-                      defaultValue="+212 612 345678"
+                      value={formData.telephone}
+                      onChange={(e) => setFormData({ ...formData, telephone: e.target.value })}
                       className="w-full h-11 bg-white/5 border border-white/10 rounded-xl px-4 text-sm text-white focus:outline-none focus:ring-1 focus:ring-orange-accent/50"
                     />
                   </div>

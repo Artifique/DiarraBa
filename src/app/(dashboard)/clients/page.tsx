@@ -1,6 +1,6 @@
-﻿"use client";
+"use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Users,
@@ -9,12 +9,10 @@ import {
   Mail,
   Phone,
   MapPin,
-  Wallet,
   Trash2,
   Eye,
   Pencil,
-  Clock,
-  History,
+  Loader2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
@@ -30,49 +28,23 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Pagination } from "@/components/ui/pagination";
 import { DateFilter } from "@/components/ui/date-filter";
-
-const initialClients = [
-  {
-    id: 1,
-    nom: "Ahmed Bennani",
-    email: "ahmed@email.com",
-    tel: "+212 612 111111",
-    adresse: "Rabat, Maroc",
-    solde: 12500,
-    date: "12 Oct 2023",
-  },
-  {
-    id: 2,
-    nom: "Fatima Alaoui",
-    email: "fatima@email.com",
-    tel: "+212 612 222222",
-    adresse: "Fès, Maroc",
-    solde: -5000,
-    date: "05 Nov 2023",
-  },
-  {
-    id: 3,
-    nom: "Mohammed Karim",
-    email: "mohammed@email.com",
-    tel: "+212 612 333333",
-    adresse: "Tangier, Maroc",
-    solde: 0,
-    date: "20 Dec 2023",
-  },
-];
+import { createClient } from "@/lib/supabase";
+import { ClientModel } from "@/lib/models/client.model";
+import { Client } from "@/types/database";
 
 export default function ClientsPage() {
-  const [clients, setClients] = useState(initialClients);
+  const [loading, setLoading] = useState(true);
+  const [clients, setClients] = useState<Client[]>([]);
   const [isOpen, setIsOpen] = useState(false);
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [isViewOpen, setIsViewOpen] = useState(false);
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
 
-  const [selectedClient, setSelectedClient] = useState<any>(null);
+  const [selectedClient, setSelectedClient] = useState<Client | null>(null);
   const [formData, setFormData] = useState({
     nom: "",
     email: "",
-    tel: "",
+    telephone: "",
     adresse: "",
   });
 
@@ -82,15 +54,33 @@ export default function ClientsPage() {
   const [dateFilter, setDateFilter] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
 
+  const fetchClients = useCallback(async () => {
+    setLoading(true);
+    try {
+      const supabase = createClient();
+      const model = new ClientModel(supabase);
+      const data = await model.findAll();
+      setClients(data);
+    } catch (error) {
+      console.error("Error fetching clients:", error);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchClients();
+  }, [fetchClients]);
+
   // Filtered and paginated clients
   const filteredClients = clients.filter((client) => {
     const matchesSearch =
       client.nom.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      client.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      client.tel.includes(searchTerm) ||
-      client.adresse.toLowerCase().includes(searchTerm.toLowerCase());
+      (client.email?.toLowerCase().includes(searchTerm.toLowerCase()) ?? false) ||
+      client.telephone.includes(searchTerm) ||
+      (client.adresse?.toLowerCase().includes(searchTerm.toLowerCase()) ?? false);
 
-    const matchesDate = !dateFilter || client.date === dateFilter;
+    const matchesDate = !dateFilter || client.date_inscription.startsWith(dateFilter);
 
     return matchesSearch && matchesDate;
   });
@@ -106,49 +96,63 @@ export default function ClientsPage() {
     setCurrentPage(1);
   }, [searchTerm, dateFilter]);
 
-  const handleAdd = () => {
-    if (!formData.nom) return;
-    const item = {
-      id: Date.now(),
-      ...formData,
-      solde: 0,
-      date: new Date().toLocaleDateString("fr-FR", {
-        day: "2-digit",
-        month: "short",
-        year: "numeric",
-      }),
-    };
-    setClients([item, ...clients]);
-    setIsOpen(false);
-    setFormData({ nom: "", email: "", tel: "", adresse: "" });
+  const handleAdd = async () => {
+    if (!formData.nom || !formData.telephone) return;
+    try {
+      const supabase = createClient();
+      const model = new ClientModel(supabase);
+      await model.create({
+        ...formData,
+        solde: 0,
+        actif: true,
+        notes: null
+      });
+      setIsOpen(false);
+      setFormData({ nom: "", email: "", telephone: "", adresse: "" });
+      fetchClients();
+    } catch (error) {
+      console.error("Error creating client:", error);
+    }
   };
 
-  const handleEdit = () => {
-    setClients(
-      clients.map((c) =>
-        c.id === selectedClient.id ? { ...c, ...formData } : c,
-      ),
-    );
-    setIsEditOpen(false);
+  const handleEdit = async () => {
+    if (!selectedClient) return;
+    try {
+      const supabase = createClient();
+      const model = new ClientModel(supabase);
+      await model.update(selectedClient.id, formData);
+      setIsEditOpen(false);
+      fetchClients();
+    } catch (error) {
+      console.error("Error updating client:", error);
+    }
   };
 
-  const handleDelete = () => {
-    setClients(clients.filter((c) => c.id !== selectedClient.id));
-    setDeleteConfirmOpen(false);
+  const handleDelete = async () => {
+    if (!selectedClient) return;
+    try {
+      const supabase = createClient();
+      const model = new ClientModel(supabase);
+      await model.delete(selectedClient.id);
+      setDeleteConfirmOpen(false);
+      fetchClients();
+    } catch (error) {
+      console.error("Error deleting client:", error);
+    }
   };
 
-  const openEdit = (client: any) => {
+  const openEdit = (client: Client) => {
     setSelectedClient(client);
     setFormData({
       nom: client.nom,
       email: client.email || "",
-      tel: client.tel || "",
+      telephone: client.telephone,
       adresse: client.adresse || "",
     });
     setIsEditOpen(true);
   };
 
-  const openView = (client: any) => {
+  const openView = (client: Client) => {
     setSelectedClient(client);
     setIsViewOpen(true);
   };
@@ -166,7 +170,7 @@ export default function ClientsPage() {
         </div>
         <Button
           onClick={() => {
-            setFormData({ nom: "", email: "", tel: "", adresse: "" });
+            setFormData({ nom: "", email: "", telephone: "", adresse: "" });
             setIsOpen(true);
           }}
           className="bg-orange-accent text-night font-bold hover:bg-orange-accent/90 orange-glow-hover rounded-xl"
@@ -208,94 +212,102 @@ export default function ClientsPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-white/5">
-              <AnimatePresence mode="popLayout">
-                {paginatedClients.map((client) => (
-                  <motion.tr
-                    layout
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    exit={{ opacity: 0 }}
-                    key={client.id}
-                    className="group hover:bg-white/[0.02] transition-colors"
-                  >
-                    <td className="px-6 py-4">
-                      <div className="flex items-center gap-3">
-                        <div className="h-10 w-10 rounded-full bg-orange-accent/10 border border-orange-accent/20 flex items-center justify-center text-orange-accent font-bold text-sm">
-                          {client.nom.charAt(0)}
+              {loading ? (
+                <tr>
+                  <td colSpan={5} className="px-6 py-12 text-center">
+                    <Loader2 className="h-8 w-8 animate-spin text-orange-accent mx-auto" />
+                  </td>
+                </tr>
+              ) : (
+                <AnimatePresence mode="popLayout">
+                  {paginatedClients.map((client) => (
+                    <motion.tr
+                      layout
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      exit={{ opacity: 0 }}
+                      key={client.id}
+                      className="group hover:bg-white/[0.02] transition-colors"
+                    >
+                      <td className="px-6 py-4">
+                        <div className="flex items-center gap-3">
+                          <div className="h-10 w-10 rounded-full bg-orange-accent/10 border border-orange-accent/20 flex items-center justify-center text-orange-accent font-bold text-sm">
+                            {client.nom.charAt(0)}
+                          </div>
+                          <div>
+                            <p className="text-sm font-bold text-white">
+                              {client.nom}
+                            </p>
+                            <p className="text-[10px] text-muted-foreground">
+                              ID: #{client.id.toString().slice(0, 8)}
+                            </p>
+                          </div>
                         </div>
-                        <div>
-                          <p className="text-sm font-bold text-white">
-                            {client.nom}
-                          </p>
-                          <p className="text-[10px] text-muted-foreground">
-                            ID: #{client.id.toString().slice(-4)}
-                          </p>
+                      </td>
+                      <td className="px-6 py-4">
+                        <div className="space-y-1">
+                          <div className="flex items-center text-xs text-muted-foreground">
+                            <Mail className="h-3 w-3 mr-1.5 text-orange-accent/60" />{" "}
+                            {client.email || "Non renseigné"}
+                          </div>
+                          <div className="flex items-center text-xs text-muted-foreground">
+                            <Phone className="h-3 w-3 mr-1.5 text-orange-accent/60" />{" "}
+                            {client.telephone}
+                          </div>
                         </div>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4">
-                      <div className="space-y-1">
-                        <div className="flex items-center text-xs text-muted-foreground">
-                          <Mail className="h-3 w-3 mr-1.5 text-orange-accent/60" />{" "}
-                          {client.email}
+                      </td>
+                      <td className="px-6 py-4 text-xs text-muted-foreground">
+                        <div className="flex items-center">
+                          <MapPin className="h-3 w-3 mr-1.5 text-orange-accent/60" />{" "}
+                          {client.adresse || "Non renseignée"}
                         </div>
-                        <div className="flex items-center text-xs text-muted-foreground">
-                          <Phone className="h-3 w-3 mr-1.5 text-orange-accent/60" />{" "}
-                          {client.tel}
-                        </div>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 text-xs text-muted-foreground">
-                      <div className="flex items-center">
-                        <MapPin className="h-3 w-3 mr-1.5 text-orange-accent/60" />{" "}
-                        {client.adresse}
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 text-right">
-                      <p
-                        className={cn(
-                          "text-sm font-mono font-bold",
-                          client.solde > 0
-                            ? "text-forest-green"
-                            : client.solde < 0
-                            ? "text-destructive"
-                            : "text-white",
-                        )}
-                      >
-                        {client.solde.toLocaleString()} FCFA
-                      </p>
-                    </td>
-                    <td className="px-6 py-4 text-right">
-                      <div className="flex justify-end gap-2">
-                        <button
-                          onClick={() => openView(client)}
-                          className="p-2 hover:bg-white/5 rounded-lg transition-colors text-muted-foreground hover:text-white"
-                          title="Voir"
+                      </td>
+                      <td className="px-6 py-4 text-right">
+                        <p
+                          className={cn(
+                            "text-sm font-mono font-bold",
+                            client.solde > 0
+                              ? "text-forest-green"
+                              : client.solde < 0
+                              ? "text-destructive"
+                              : "text-white",
+                          )}
                         >
-                          <Eye className="h-4 w-4" />
-                        </button>
-                        <button
-                          onClick={() => openEdit(client)}
-                          className="p-2 hover:bg-white/5 rounded-lg transition-colors text-muted-foreground hover:text-orange-accent"
-                          title="Modifier"
-                        >
-                          <Pencil className="h-4 w-4" />
-                        </button>
-                        <button
-                          onClick={() => {
-                            setSelectedClient(client);
-                            setDeleteConfirmOpen(true);
-                          }}
-                          className="p-2 hover:bg-destructive/10 rounded-lg transition-colors text-muted-foreground hover:text-destructive"
-                          title="Supprimer"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </button>
-                      </div>
-                    </td>
-                  </motion.tr>
-                ))}
-              </AnimatePresence>
+                          {client.solde.toLocaleString()} FCFA
+                        </p>
+                      </td>
+                      <td className="px-6 py-4 text-right">
+                        <div className="flex justify-end gap-2">
+                          <button
+                            onClick={() => openView(client)}
+                            className="p-2 hover:bg-white/5 rounded-lg transition-colors text-muted-foreground hover:text-white"
+                            title="Voir"
+                          >
+                            <Eye className="h-4 w-4" />
+                          </button>
+                          <button
+                            onClick={() => openEdit(client)}
+                            className="p-2 hover:bg-white/5 rounded-lg transition-colors text-muted-foreground hover:text-orange-accent"
+                            title="Modifier"
+                          >
+                            <Pencil className="h-4 w-4" />
+                          </button>
+                          <button
+                            onClick={() => {
+                              setSelectedClient(client);
+                              setDeleteConfirmOpen(true);
+                            }}
+                            className="p-2 hover:bg-destructive/10 rounded-lg transition-colors text-muted-foreground hover:text-destructive"
+                            title="Supprimer"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </button>
+                        </div>
+                      </td>
+                    </motion.tr>
+                  ))}
+                </AnimatePresence>
+              )}
             </tbody>
           </table>
         </div>
@@ -358,8 +370,8 @@ export default function ClientsPage() {
                 Téléphone
               </Label>
               <Input
-                value={formData.tel}
-                onChange={(e) => setFormData({ ...formData, tel: e.target.value })}
+                value={formData.telephone}
+                onChange={(e) => setFormData({ ...formData, telephone: e.target.value })}
                 className="bg-white/5 border-white/10 text-white"
               />
             </div>
@@ -389,7 +401,7 @@ export default function ClientsPage() {
               onClick={isEditOpen ? handleEdit : handleAdd}
               className="bg-orange-accent text-night font-bold hover:bg-orange-accent/90"
             >
-              {isEditOpen ? "Enregistrer les modifications" : "Créer le profil"}
+              {isEditOpen ? "Enregistrer" : "Créer le profil"}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -409,7 +421,7 @@ export default function ClientsPage() {
                     {selectedClient.nom}
                   </h3>
                   <p className="text-muted-foreground uppercase text-[10px] tracking-widest font-bold">
-                    Client depuis le {selectedClient.date}
+                    Inscrit le {new Date(selectedClient.date_inscription).toLocaleDateString('fr-FR')}
                   </p>
                   <div
                     className={cn(
@@ -433,35 +445,15 @@ export default function ClientsPage() {
                     <div className="space-y-2">
                       <div className="flex items-center text-sm text-muted-foreground">
                         <Mail className="h-4 w-4 mr-3 text-orange-accent/60" />
-                        {selectedClient.email}
+                        {selectedClient.email || "Non renseigné"}
                       </div>
                       <div className="flex items-center text-sm text-muted-foreground">
                         <Phone className="h-4 w-4 mr-3 text-orange-accent/60" />
-                        {selectedClient.tel}
+                        {selectedClient.telephone}
                       </div>
                       <div className="flex items-center text-sm text-muted-foreground">
                         <MapPin className="h-4 w-4 mr-3 text-orange-accent/60" />
-                        {selectedClient.adresse}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="space-y-4">
-                  <div>
-                    <p className="text-xs uppercase tracking-widest font-bold text-white/70 mb-2">
-                      Statistiques
-                    </p>
-                    <div className="space-y-2">
-                      <div className="flex justify-between text-sm">
-                        <span className="text-muted-foreground">ID Client:</span>
-                        <span className="text-white font-mono">
-                          #{selectedClient.id.toString().slice(-4)}
-                        </span>
-                      </div>
-                      <div className="flex justify-between text-sm">
-                        <span className="text-muted-foreground">Date d'ajout:</span>
-                        <span className="text-white">{selectedClient.date}</span>
+                        {selectedClient.adresse || "Non renseignée"}
                       </div>
                     </div>
                   </div>

@@ -24,7 +24,7 @@ import { cn } from "@/lib/utils";
 type NavItem = {
   name: string;
   href?: string;
-  icon?: LucideIcon;
+  icon?: React.ComponentType<{ className?: string }>;
   group?: boolean;
 };
 
@@ -86,12 +86,12 @@ export function Sidebar() {
             }
 
             const isActive = pathname === item.href;
-            const Icon = item.icon!;
+            const Icon = item.icon;
 
             return (
               <Link
                 key={item.name}
-                href={item.href!}
+                href={item.href || "#"}
                 className={cn(
                   "group flex items-center px-3 py-2.5 text-sm font-medium rounded-md transition-all duration-300 relative overflow-hidden",
                   isActive
@@ -102,14 +102,16 @@ export function Sidebar() {
                 {isActive && (
                   <div className="absolute left-0 top-0 bottom-0 w-1 bg-orange-accent shadow-[0_0_10px_rgba(245,166,35,0.8)]" />
                 )}
-                <Icon
-                  className={cn(
-                    "mr-3 h-5 w-5 transition-colors duration-300",
-                    isActive
-                      ? "text-orange-accent"
-                      : "text-foreground/40 group-hover:text-orange-accent/70",
-                  )}
-                />
+                {Icon && (
+                  <Icon
+                    className={cn(
+                      "mr-3 h-5 w-5 transition-colors duration-300",
+                      isActive
+                        ? "text-orange-accent"
+                        : "text-foreground/40 group-hover:text-orange-accent/70",
+                    )}
+                  />
+                )}
                 {item.name}
               </Link>
             );

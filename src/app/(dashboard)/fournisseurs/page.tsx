@@ -1,6 +1,6 @@
-﻿"use client";
+"use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Truck,
@@ -9,13 +9,11 @@ import {
   Mail,
   Phone,
   MapPin,
-  CreditCard,
   Trash2,
   Eye,
   Pencil,
   Star,
-  Package,
-  History
+  Loader2
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
@@ -31,22 +29,20 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Pagination } from "@/components/ui/pagination";
 import { DateFilter } from "@/components/ui/date-filter";
-
-const initialFournisseurs = [
-  { id: 1, nom: "Ferme Nationale", email: "contact@ferme.ma", tel: "+212 522 444444", adresse: "Marrakech, Maroc", solde: 45000, notation: 5, date: "15 Jan 2024" },
-  { id: 2, nom: "Élevage Premium", email: "info@elevage.ma", tel: "+212 522 555555", adresse: "Casablanca, Maroc", solde: -12000, notation: 4, date: "08 Feb 2024" },
-  { id: 3, nom: "Volailles du Sud", email: "ventes@vds.ma", tel: "+212 522 666666", adresse: "Agadir, Maroc", solde: 0, notation: 3, date: "22 Mar 2024" },
-];
+import { createClient } from "@/lib/supabase";
+import { FournisseurModel } from "@/lib/models/fournisseur.model";
+import { Fournisseur } from "@/types/database";
 
 export default function FournisseursPage() {
-  const [fournisseurs, setFournisseurs] = useState(initialFournisseurs);
+  const [loading, setLoading] = useState(true);
+  const [fournisseurs, setFournisseurs] = useState<Fournisseur[]>([]);
   const [isOpen, setIsOpen] = useState(false);
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [isViewOpen, setIsViewOpen] = useState(false);
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
 
-  const [selectedFournisseur, setSelectedFournisseur] = useState<any>(null);
-  const [formData, setFormData] = useState({ nom: "", email: "", tel: "", adresse: "" });
+  const [selectedFournisseur, setSelectedFournisseur] = useState<Fournisseur | null>(null);
+  const [formData, setFormData] = useState({ nom: "", email: "", telephone: "", adresse: "" });
 
   // Pagination and filtering
   const [currentPage, setCurrentPage] = useState(1);
@@ -54,15 +50,33 @@ export default function FournisseursPage() {
   const [dateFilter, setDateFilter] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
 
+  const fetchFournisseurs = useCallback(async () => {
+    setLoading(true);
+    try {
+      const supabase = createClient();
+      const model = new FournisseurModel(supabase);
+      const data = await model.findAll();
+      setFournisseurs(data);
+    } catch (error) {
+      console.error("Error fetching fournisseurs:", error);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchFournisseurs();
+  }, [fetchFournisseurs]);
+
   // Filtered and paginated fournisseurs
   const filteredFournisseurs = fournisseurs.filter((fournisseur) => {
     const matchesSearch =
       fournisseur.nom.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      fournisseur.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      fournisseur.tel.includes(searchTerm) ||
-      fournisseur.adresse.toLowerCase().includes(searchTerm.toLowerCase());
+      (fournisseur.email?.toLowerCase().includes(searchTerm.toLowerCase()) ?? false) ||
+      fournisseur.telephone.includes(searchTerm) ||
+      (fournisseur.adresse?.toLowerCase().includes(searchTerm.toLowerCase()) ?? false);
 
-    const matchesDate = !dateFilter || fournisseur.date === dateFilter;
+    const matchesDate = !dateFilter || fournisseur.date_inscription.startsWith(dateFilter);
 
     return matchesSearch && matchesDate;
   });
@@ -78,46 +92,63 @@ export default function FournisseursPage() {
     setCurrentPage(1);
   }, [searchTerm, dateFilter]);
 
-  const handleAdd = () => {
-    if (!formData.nom) return;
-    const item = {
-      id: Date.now(),
-      ...formData,
-      solde: 0,
-      notation: 5,
-      date: new Date().toLocaleDateString("fr-FR", {
-        day: "2-digit",
-        month: "short",
-        year: "numeric",
-      }),
-    };
-    setFournisseurs([item, ...fournisseurs]);
-    setIsOpen(false);
-    setFormData({ nom: "", email: "", tel: "", adresse: "" });
+  const handleAdd = async () => {
+    if (!formData.nom || !formData.telephone) return;
+    try {
+      const supabase = createClient();
+      const model = new FournisseurModel(supabase);
+      await model.create({
+        ...formData,
+        solde: 0,
+        actif: true,
+        notes: null
+      });
+      setIsOpen(false);
+      setFormData({ nom: "", email: "", telephone: "", adresse: "" });
+      fetchFournisseurs();
+    } catch (error) {
+      console.error("Error creating fournisseur:", error);
+    }
   };
 
-  const handleEdit = () => {
-    setFournisseurs(fournisseurs.map(f => f.id === selectedFournisseur.id ? { ...f, ...formData } : f));
-    setIsEditOpen(false);
+  const handleEdit = async () => {
+    if (!selectedFournisseur) return;
+    try {
+      const supabase = createClient();
+      const model = new FournisseurModel(supabase);
+      await model.update(selectedFournisseur.id, formData);
+      setIsEditOpen(false);
+      fetchFournisseurs();
+    } catch (error) {
+      console.error("Error updating fournisseur:", error);
+    }
   };
 
-  const handleDelete = () => {
-    setFournisseurs(fournisseurs.filter(f => f.id !== selectedFournisseur.id));
-    setDeleteConfirmOpen(false);
+  const handleDelete = async () => {
+    if (!selectedFournisseur) return;
+    try {
+      const supabase = createClient();
+      const model = new FournisseurModel(supabase);
+      await model.delete(selectedFournisseur.id);
+      setDeleteConfirmOpen(false);
+      fetchFournisseurs();
+    } catch (error) {
+      console.error("Error deleting fournisseur:", error);
+    }
   };
 
-  const openEdit = (f: any) => {
+  const openEdit = (f: Fournisseur) => {
     setSelectedFournisseur(f);
-    setFormData({ nom: f.nom, email: f.email || "", tel: f.tel || "", adresse: f.adresse || "" });
+    setFormData({ nom: f.nom, email: f.email || "", telephone: f.telephone, adresse: f.adresse || "" });
     setIsEditOpen(true);
   };
 
-  const openView = (f: any) => {
+  const openView = (f: Fournisseur) => {
     setSelectedFournisseur(f);
     setIsViewOpen(true);
   };
 
-  const renderStars = (rating: number) => {
+  const renderStars = (rating: number = 5) => {
     return Array.from({ length: 5 }, (_, i) => (
       <Star
         key={i}
@@ -137,7 +168,7 @@ export default function FournisseursPage() {
           <p className="text-sm text-muted-foreground">Administrez votre réseau de fournisseurs et le suivi des approvisionnements.</p>
         </div>
         <Button
-          onClick={() => { setFormData({ nom: "", email: "", tel: "", adresse: "" }); setIsOpen(true); }}
+          onClick={() => { setFormData({ nom: "", email: "", telephone: "", adresse: "" }); setIsOpen(true); }}
           className="bg-orange-accent text-night font-bold hover:bg-orange-accent/90 orange-glow-hover rounded-xl"
         >
           <Plus className="h-5 w-5 mr-2" /> Nouveau Fournisseur
@@ -172,78 +203,79 @@ export default function FournisseursPage() {
                 <th className="px-6 py-4 font-bold">Fournisseur</th>
                 <th className="px-6 py-4 font-bold">Contact</th>
                 <th className="px-6 py-4 font-bold">Localisation</th>
-                <th className="px-6 py-4 font-bold">Notation</th>
                 <th className="px-6 py-4 font-bold text-right">Solde</th>
                 <th className="px-6 py-4 font-bold text-right">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-white/5">
-              <AnimatePresence mode="popLayout">
-                {paginatedFournisseurs.map((fournisseur) => (
-                  <motion.tr
-                    layout
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    exit={{ opacity: 0 }}
-                    key={fournisseur.id}
-                    className="group hover:bg-white/[0.02] transition-colors"
-                  >
-                    <td className="px-6 py-4">
-                      <div className="flex items-center gap-3">
-                        <div className="h-10 w-10 rounded-full bg-orange-accent/10 border border-orange-accent/20 flex items-center justify-center text-orange-accent font-bold text-sm">
-                          {fournisseur.nom.charAt(0)}
+              {loading ? (
+                <tr>
+                  <td colSpan={5} className="px-6 py-12 text-center">
+                    <Loader2 className="h-8 w-8 animate-spin text-orange-accent mx-auto" />
+                  </td>
+                </tr>
+              ) : (
+                <AnimatePresence mode="popLayout">
+                  {paginatedFournisseurs.map((fournisseur) => (
+                    <motion.tr
+                      layout
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      exit={{ opacity: 0 }}
+                      key={fournisseur.id}
+                      className="group hover:bg-white/[0.02] transition-colors"
+                    >
+                      <td className="px-6 py-4">
+                        <div className="flex items-center gap-3">
+                          <div className="h-10 w-10 rounded-full bg-orange-accent/10 border border-orange-accent/20 flex items-center justify-center text-orange-accent font-bold text-sm">
+                            {fournisseur.nom.charAt(0)}
+                          </div>
+                          <div>
+                            <p className="text-sm font-bold text-white">{fournisseur.nom}</p>
+                            <p className="text-[10px] text-muted-foreground">ID: #{fournisseur.id.toString().slice(0, 8)}</p>
+                          </div>
                         </div>
-                        <div>
-                          <p className="text-sm font-bold text-white">{fournisseur.nom}</p>
-                          <p className="text-[10px] text-muted-foreground">ID: #{fournisseur.id.toString().slice(-4)}</p>
+                      </td>
+                      <td className="px-6 py-4">
+                        <div className="space-y-1">
+                          <div className="flex items-center text-xs text-muted-foreground">
+                            <Mail className="h-3 w-3 mr-1.5 text-orange-accent/60" /> {fournisseur.email || "Non renseigné"}
+                          </div>
+                          <div className="flex items-center text-xs text-muted-foreground">
+                            <Phone className="h-3 w-3 mr-1.5 text-orange-accent/60" /> {fournisseur.telephone}
+                          </div>
                         </div>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4">
-                      <div className="space-y-1">
-                        <div className="flex items-center text-xs text-muted-foreground">
-                          <Mail className="h-3 w-3 mr-1.5 text-orange-accent/60" /> {fournisseur.email}
+                      </td>
+                      <td className="px-6 py-4 text-xs text-muted-foreground">
+                        <div className="flex items-center">
+                          <MapPin className="h-3 w-3 mr-1.5 text-orange-accent/60" /> {fournisseur.adresse || "Non renseignée"}
                         </div>
-                        <div className="flex items-center text-xs text-muted-foreground">
-                          <Phone className="h-3 w-3 mr-1.5 text-orange-accent/60" /> {fournisseur.tel}
+                      </td>
+                      <td className="px-6 py-4 text-right">
+                        <p className={cn(
+                          "text-sm font-mono font-bold",
+                          fournisseur.solde > 0 ? "text-forest-green" : fournisseur.solde < 0 ? "text-destructive" : "text-white"
+                        )}>
+                          {fournisseur.solde.toLocaleString()} FCFA
+                        </p>
+                      </td>
+                      <td className="px-6 py-4 text-right">
+                        <div className="flex justify-end gap-2">
+                          <button onClick={() => openView(fournisseur)} className="p-2 hover:bg-white/5 rounded-lg transition-colors text-muted-foreground hover:text-white" title="Voir">
+                            <Eye className="h-4 w-4" />
+                          </button>
+                          <button onClick={() => openEdit(fournisseur)} className="p-2 hover:bg-white/5 rounded-lg transition-colors text-muted-foreground hover:text-orange-accent" title="Modifier">
+                            <Pencil className="h-4 w-4" />
+                          </button>
+                          <button onClick={() => { setSelectedFournisseur(fournisseur); setDeleteConfirmOpen(true); }} className="p-2 hover:bg-destructive/10 rounded-lg transition-colors text-muted-foreground hover:text-destructive" title="Supprimer">
+                            <Trash2 className="h-4 w-4" />
+                          </button>
                         </div>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 text-xs text-muted-foreground">
-                      <div className="flex items-center">
-                        <MapPin className="h-3 w-3 mr-1.5 text-orange-accent/60" /> {fournisseur.adresse}
-                      </div>
-                    </td>
-                    <td className="px-6 py-4">
-                      <div className="flex items-center gap-1">
-                        {renderStars(fournisseur.notation)}
-                        <span className="text-xs text-muted-foreground ml-1">({fournisseur.notation})</span>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 text-right">
-                      <p className={cn(
-                        "text-sm font-mono font-bold",
-                        fournisseur.solde > 0 ? "text-forest-green" : fournisseur.solde < 0 ? "text-destructive" : "text-white"
-                      )}>
-                        {fournisseur.solde.toLocaleString()} FCFA
-                      </p>
-                    </td>
-                    <td className="px-6 py-4 text-right">
-                      <div className="flex justify-end gap-2">
-                        <button onClick={() => openView(fournisseur)} className="p-2 hover:bg-white/5 rounded-lg transition-colors text-muted-foreground hover:text-white" title="Voir">
-                          <Eye className="h-4 w-4" />
-                        </button>
-                        <button onClick={() => openEdit(fournisseur)} className="p-2 hover:bg-white/5 rounded-lg transition-colors text-muted-foreground hover:text-orange-accent" title="Modifier">
-                          <Pencil className="h-4 w-4" />
-                        </button>
-                        <button onClick={() => { setSelectedFournisseur(fournisseur); setDeleteConfirmOpen(true); }} className="p-2 hover:bg-destructive/10 rounded-lg transition-colors text-muted-foreground hover:text-destructive" title="Supprimer">
-                          <Trash2 className="h-4 w-4" />
-                        </button>
-                      </div>
-                    </td>
-                  </motion.tr>
-                ))}
-              </AnimatePresence>
+                      </td>
+                    </motion.tr>
+                  ))}
+                </AnimatePresence>
+              )}
             </tbody>
           </table>
         </div>
@@ -280,7 +312,7 @@ export default function FournisseursPage() {
             </div>
             <div className="space-y-2">
               <Label className="text-xs uppercase tracking-widest font-bold text-white/70">Téléphone</Label>
-              <Input value={formData.tel} onChange={(e) => setFormData({...formData, tel: e.target.value})} className="bg-white/5 border-white/10 text-white" />
+              <Input value={formData.telephone} onChange={(e) => setFormData({...formData, telephone: e.target.value})} className="bg-white/5 border-white/10 text-white" />
             </div>
             <div className="space-y-2">
               <Label className="text-xs uppercase tracking-widest font-bold text-white/70">Adresse</Label>
@@ -290,7 +322,7 @@ export default function FournisseursPage() {
           <DialogFooter>
             <Button variant="outline" onClick={() => { setIsOpen(false); setIsEditOpen(false); }} className="border-white/10 text-white hover:bg-white/5">Annuler</Button>
             <Button onClick={isEditOpen ? handleEdit : handleAdd} className="bg-orange-accent text-night font-bold hover:bg-orange-accent/90">
-              {isEditOpen ? "Enregistrer les modifications" : "Créer le profil"}
+              {isEditOpen ? "Enregistrer" : "Créer le profil"}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -307,13 +339,7 @@ export default function FournisseursPage() {
                 </div>
                 <div>
                   <h3 className="text-2xl font-display font-bold text-white">{selectedFournisseur.nom}</h3>
-                  <p className="text-muted-foreground uppercase text-[10px] tracking-widest font-bold">Fournisseur depuis le {selectedFournisseur.date}</p>
-                  <div className="flex items-center gap-2 mt-2">
-                    <div className="flex items-center gap-1">
-                      {renderStars(selectedFournisseur.notation)}
-                    </div>
-                    <span className="text-xs text-muted-foreground">({selectedFournisseur.notation}/5)</span>
-                  </div>
+                  <p className="text-muted-foreground uppercase text-[10px] tracking-widest font-bold">Fournisseur depuis le {new Date(selectedFournisseur.date_inscription).toLocaleDateString('fr-FR')}</p>
                   <div className={cn(
                     "mt-2 inline-flex items-center px-3 py-1 rounded-full text-xs font-bold",
                     selectedFournisseur.solde >= 0 ? "bg-forest-green/10 text-forest-green border border-forest-green/20" : "bg-destructive/10 text-destructive border border-destructive/20"
@@ -330,31 +356,15 @@ export default function FournisseursPage() {
                     <div className="space-y-2">
                       <div className="flex items-center text-sm text-muted-foreground">
                         <Mail className="h-4 w-4 mr-3 text-orange-accent/60" />
-                        {selectedFournisseur.email}
+                        {selectedFournisseur.email || "Non renseigné"}
                       </div>
                       <div className="flex items-center text-sm text-muted-foreground">
                         <Phone className="h-4 w-4 mr-3 text-orange-accent/60" />
-                        {selectedFournisseur.tel}
+                        {selectedFournisseur.telephone}
                       </div>
                       <div className="flex items-center text-sm text-muted-foreground">
                         <MapPin className="h-4 w-4 mr-3 text-orange-accent/60" />
-                        {selectedFournisseur.adresse}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="space-y-4">
-                  <div>
-                    <p className="text-xs uppercase tracking-widest font-bold text-white/70 mb-2">Statistiques</p>
-                    <div className="space-y-2">
-                      <div className="flex justify-between text-sm">
-                        <span className="text-muted-foreground">ID Fournisseur:</span>
-                        <span className="text-white font-mono">#{selectedFournisseur.id.toString().slice(-4)}</span>
-                      </div>
-                      <div className="flex justify-between text-sm">
-                        <span className="text-muted-foreground">Date d'ajout:</span>
-                        <span className="text-white">{selectedFournisseur.date}</span>
+                        {selectedFournisseur.adresse || "Non renseignée"}
                       </div>
                     </div>
                   </div>

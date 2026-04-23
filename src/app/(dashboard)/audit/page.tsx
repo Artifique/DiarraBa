@@ -1,13 +1,13 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { 
-  History, 
-  Search, 
-  Filter, 
+import {
+  History,
+  Search,
+  Filter,
   ShieldCheck,
   Globe,
-  Monitor
+  Monitor,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useState, useEffect } from "react";
@@ -15,10 +15,42 @@ import { Pagination } from "@/components/ui/pagination";
 import { DateFilter } from "@/components/ui/date-filter";
 
 const logsMock = [
-  { id: 1, action: "UPDATE", entite: "volailles", manager: "Admin Manager", date: "22 Avr 2024 10:45", ip: "192.168.1.1", details: "Modification stock Poussin (+500)" },
-  { id: 2, action: "INSERT", entite: "reservations", manager: "Admin Manager", date: "22 Avr 2024 10:30", ip: "192.168.1.1", details: "Nouvelle réservation RES-2024-001" },
-  { id: 3, action: "DELETE", entite: "fournisseurs", manager: "Super Admin", date: "21 Avr 2024 16:20", ip: "41.140.2.15", details: "Suppression fournisseur ID: 12" },
-  { id: 4, action: "LOGIN", entite: "auth", manager: "Admin Manager", date: "21 Avr 2024 08:00", ip: "192.168.1.1", details: "Connexion réussie" },
+  {
+    id: 1,
+    action: "UPDATE",
+    entite: "volailles",
+    manager: "Admin Manager",
+    date: "22 Avr 2024 10:45",
+    ip: "192.168.1.1",
+    details: "Modification stock Poussin (+500)",
+  },
+  {
+    id: 2,
+    action: "INSERT",
+    entite: "reservations",
+    manager: "Admin Manager",
+    date: "22 Avr 2024 10:30",
+    ip: "192.168.1.1",
+    details: "Nouvelle réservation RES-2024-001",
+  },
+  {
+    id: 3,
+    action: "DELETE",
+    entite: "fournisseurs",
+    manager: "Super Admin",
+    date: "21 Avr 2024 16:20",
+    ip: "41.140.2.15",
+    details: "Suppression fournisseur ID: 12",
+  },
+  {
+    id: 4,
+    action: "LOGIN",
+    entite: "auth",
+    manager: "Admin Manager",
+    date: "21 Avr 2024 08:00",
+    ip: "192.168.1.1",
+    details: "Connexion réussie",
+  },
 ];
 
 export default function AuditPage() {
@@ -46,18 +78,25 @@ export default function AuditPage() {
   const totalPages = Math.ceil(filteredLogs.length / itemsPerPage);
   const paginatedLogs = filteredLogs.slice(
     (currentPage - 1) * itemsPerPage,
-    currentPage * itemsPerPage
+    currentPage * itemsPerPage,
   );
 
   // Reset to first page when filters change
   useEffect(() => {
     setCurrentPage(1);
   }, [searchTerm, dateFilter]);
+
+  return (
     <div className="space-y-6">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h2 className="text-2xl font-display font-bold text-white">Journal d'Audit</h2>
-          <p className="text-sm text-muted-foreground">Historique complet des actions effectuées pour une traçabilité totale.</p>
+          <h2 className="text-2xl font-display font-bold text-white">
+            Journal d'Audit
+          </h2>
+          <p className="text-sm text-muted-foreground">
+            Historique complet des actions effectuées pour une traçabilité
+            totale.
+          </p>
         </div>
         <div className="flex gap-2">
           <button className="flex items-center px-4 py-2 bg-white/5 hover:bg-white/10 text-white text-xs font-bold rounded-xl border border-white/10 transition-all">
@@ -70,9 +109,9 @@ export default function AuditPage() {
       <div className="flex flex-col md:flex-row gap-4 items-center bg-white/5 p-2 rounded-2xl border border-white/5">
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <input 
-            type="text" 
-            placeholder="Rechercher par action, entité ou gérant..." 
+          <input
+            type="text"
+            placeholder="Rechercher par action, entité ou gérant..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             className="w-full h-10 bg-night/50 border border-white/10 rounded-xl pl-10 pr-4 text-sm focus:outline-none focus:ring-1 focus:ring-orange-accent/50"
@@ -99,23 +138,37 @@ export default function AuditPage() {
           </thead>
           <tbody className="divide-y divide-white/5">
             {paginatedLogs.map((log) => (
-              <tr key={log.id} className="group hover:bg-white/[0.02] transition-colors">
+              <tr
+                key={log.id}
+                className="group hover:bg-white/[0.02] transition-colors"
+              >
                 <td className="px-6 py-4">
                   <div className="flex items-center gap-3">
-                    <span className={cn(
-                      "px-2 py-0.5 rounded-md text-[9px] font-bold uppercase",
-                      log.action === "UPDATE" ? "bg-blue-400/20 text-blue-400" :
-                      log.action === "INSERT" ? "bg-forest-green/20 text-forest-green" :
-                      log.action === "DELETE" ? "bg-destructive/20 text-destructive" :
-                      "bg-white/10 text-white"
-                    )}>
+                    <span
+                      className={cn(
+                        "px-2 py-0.5 rounded-md text-[9px] font-bold uppercase",
+                        log.action === "UPDATE"
+                          ? "bg-blue-400/20 text-blue-400"
+                          : log.action === "INSERT"
+                            ? "bg-forest-green/20 text-forest-green"
+                            : log.action === "DELETE"
+                              ? "bg-destructive/20 text-destructive"
+                              : "bg-white/10 text-white",
+                      )}
+                    >
                       {log.action}
                     </span>
-                    <span className="text-xs text-muted-foreground font-mono">{log.entite}</span>
+                    <span className="text-xs text-muted-foreground font-mono">
+                      {log.entite}
+                    </span>
                   </div>
                 </td>
-                <td className="px-6 py-4 text-sm text-white font-medium">{log.manager}</td>
-                <td className="px-6 py-4 text-xs text-muted-foreground italic truncate max-w-[250px]">{log.details}</td>
+                <td className="px-6 py-4 text-sm text-white font-medium">
+                  {log.manager}
+                </td>
+                <td className="px-6 py-4 text-xs text-muted-foreground italic truncate max-w-[250px]">
+                  {log.details}
+                </td>
                 <td className="px-6 py-4">
                   <div className="flex flex-col gap-1">
                     <div className="flex items-center text-[10px] text-muted-foreground">
@@ -129,7 +182,9 @@ export default function AuditPage() {
                   </div>
                 </td>
                 <td className="px-6 py-4 text-right">
-                  <p className="text-xs font-mono font-medium text-white">{log.date}</p>
+                  <p className="text-xs font-mono font-medium text-white">
+                    {log.date}
+                  </p>
                 </td>
               </tr>
             ))}
