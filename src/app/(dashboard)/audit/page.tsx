@@ -35,26 +35,26 @@ export default function AuditPage() {
     try {
       const supabase = createClient();
       const model = new AuditModel(supabase);
-      // Récupérer les logs d'audit. AuditModel.findAll() ne joint pas les managers
-      // Il faudrait une méthode dans AuditModel pour joindre le nom du manager.
-      // Pour l'instant, je vais récupérer tous les logs et les managers séparément.
+      
       const logsData = await model.findAll();
 
-      // Récupérer les managers pour afficher leurs noms
       const { data: managersData, error: managersError } = await supabase
         .from('managers')
         .select('id, nom');
-      if (managersError) throw managersError;
+      if (managersError) {
+        console.error("Error fetching managers for audit logs:", managersError);
+        // Ne pas throw l'erreur, car les logs peuvent être affichés même sans noms de manager
+      }
 
       const namesMap: { [key: string]: string } = {};
-      managersData.forEach(manager => {
+      managersData?.forEach(manager => { // Utiliser managersData?. pour gérer le cas où managersData est null
         namesMap[manager.id] = manager.nom;
       });
       setManagerNames(namesMap);
 
       setAuditLogs(logsData);
     } catch (error) {
-      console.error("Error fetching audit logs:", error);
+      console.error("Error fetching audit logs:", error); // Log d'erreur détaillé
     } finally {
       setLoading(false);
     }
@@ -136,70 +136,77 @@ export default function AuditPage() {
             <Loader2 className="h-12 w-12 animate-spin text-orange-accent" />
           </div>
         ) : (
-          <table className="w-full text-left">
-            <thead className="bg-white/5 border-b border-white/5">
-              <tr className="text-[10px] uppercase tracking-widest text-muted-foreground">
-                <th className="px-6 py-4 font-semibold">Action / Entité</th>
-                <th className="px-6 py-4 font-semibold">Gérant</th>
-                <th className="px-6 py-4 font-semibold">Détails</th>
-                <th className="px-6 py-4 font-semibold">Origine</th>
-                <th className="px-6 py-4 font-semibold text-right">Horodatage</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-white/5">
-              {paginatedLogs.map((log) => (
-                <tr
-                  key={log.id}
-                  className="group hover:bg-white/[0.02] transition-colors"
-                >
-                  <td className="px-6 py-4">
-                    <div className="flex items-center gap-3">
-                      <span
-                        className={cn(
-                          "px-2 py-0.5 rounded-md text-[9px] font-bold uppercase",
-                          log.action === "UPDATE"
-                            ? "bg-blue-400/20 text-blue-400"
-                            : log.action === "CREATE" // Changement de INSERT à CREATE
-                              ? "bg-forest-green/20 text-forest-green"
-                              : log.action === "DELETE"
-                                ? "bg-destructive/20 text-destructive"
-                                : "bg-white/10 text-white",
-                        )}
-                      >
-                        {log.action}
-                      </span>
-                      <span className="text-xs text-muted-foreground font-mono">
-                        {log.entite}
-                      </span>
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 text-sm text-white font-medium">
-                    {log.manager_id ? managerNames[log.manager_id] || "Inconnu" : "Système"}
-                  </td>
-                  <td className="px-6 py-4 text-xs text-muted-foreground italic truncate max-w-[250px]">
-                    {log.nouvelle_valeur || log.ancienne_valeur || "N/A"}
-                  </td>
-                  <td className="px-6 py-4">
-                    <div className="flex flex-col gap-1">
-                      <div className="flex items-center text-[10px] text-muted-foreground">
-                        <Globe className="h-3 w-3 mr-1 text-orange-accent/50" />
-                        {log.adresse_ip || "N/A"}
-                      </div>
-                      <div className="flex items-center text-[10px] text-muted-foreground">
-                        <Monitor className="h-3 w-3 mr-1 text-orange-accent/50" />
-                        {log.user_agent || "N/A"}
-                      </div>
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 text-right">
-                    <p className="text-xs font-mono font-medium text-white">
-                      {new Date(log.date_action).toLocaleDateString('fr-FR')} {new Date(log.date_action).toLocaleTimeString('fr-FR')}
-                    </p>
-                  </td>
+          paginatedLogs.length === 0 ? ( // Condition pour afficher le message "Aucun log"
+            <div className="text-center py-20 bg-white/5 rounded-3xl border border-dashed border-white/10">
+              <History className="h-12 w-12 text-muted-foreground/30 mx-auto mb-4" />
+              <p className="text-muted-foreground italic">Aucun log d'audit pour le moment.</p>
+            </div>
+          ) : (
+            <table className="w-full text-left">
+              <thead className="bg-white/5 border-b border-white/5">
+                <tr className="text-[10px] uppercase tracking-widest text-muted-foreground">
+                  <th className="px-6 py-4 font-semibold">Action / Entité</th>
+                  <th className="px-6 py-4 font-semibold">Gérant</th>
+                  <th className="px-6 py-4 font-semibold">Détails</th>
+                  <th className="px-6 py-4 font-semibold">Origine</th>
+                  <th className="px-6 py-4 font-semibold text-right">Horodatage</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody className="divide-y divide-white/5">
+                {paginatedLogs.map((log) => (
+                  <tr
+                    key={log.id}
+                    className="group hover:bg-white/[0.02] transition-colors"
+                  >
+                    <td className="px-6 py-4">
+                      <div className="flex items-center gap-3">
+                        <span
+                          className={cn(
+                            "px-2 py-0.5 rounded-md text-[9px] font-bold uppercase",
+                            log.action === "UPDATE"
+                              ? "bg-blue-400/20 text-blue-400"
+                              : log.action === "CREATE" // Changement de INSERT à CREATE
+                                ? "bg-forest-green/20 text-forest-green"
+                                : log.action === "DELETE"
+                                  ? "bg-destructive/20 text-destructive"
+                                  : "bg-white/10 text-white",
+                          )}
+                        >
+                          {log.action}
+                        </span>
+                        <span className="text-xs text-muted-foreground font-mono">
+                          {log.entite}
+                        </span>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 text-sm text-white font-medium">
+                      {log.manager_id ? managerNames[log.manager_id] || "Inconnu" : "Système"}
+                    </td>
+                    <td className="px-6 py-4 text-xs text-muted-foreground italic truncate max-w-[250px]">
+                      {log.nouvelle_valeur || log.ancienne_valeur || "N/A"}
+                    </td>
+                    <td className="px-6 py-4">
+                      <div className="flex flex-col gap-1">
+                        <div className="flex items-center text-[10px] text-muted-foreground">
+                          <Globe className="h-3 w-3 mr-1 text-orange-accent/50" />
+                          {log.adresse_ip || "N/A"}
+                        </div>
+                        <div className="flex items-center text-[10px] text-muted-foreground">
+                          <Monitor className="h-3 w-3 mr-1 text-orange-accent/50" />
+                          {log.user_agent || "N/A"}
+                        </div>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 text-right">
+                      <p className="text-xs font-mono font-medium text-white">
+                        {new Date(log.date_action).toLocaleDateString('fr-FR')} {new Date(log.date_action).toLocaleTimeString('fr-FR')}
+                      </p>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )
         )}
 
         {/* Pagination */}

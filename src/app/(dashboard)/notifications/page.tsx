@@ -34,6 +34,7 @@ export default function NotificationsPage() {
   const [notifications, setNotifications] = useState<Notification[]>([]);
   // TODO: Remplacer par l'ID réel du manager connecté
   const managerId = "CURRENT_MANAGER_ID"; // Placeholder pour l'ID du manager
+  console.log("Current Manager ID for notifications:", managerId); // Log ajouté
 
   const fetchNotifications = useCallback(async () => {
     setLoading(true);
@@ -43,7 +44,7 @@ export default function NotificationsPage() {
       const data = await notificationService.getAll();
       setNotifications(data);
     } catch (error) {
-      console.error("Error fetching notifications:", error);
+      console.error("Error fetching notifications:", error); // Log d'erreur détaillé
     } finally {
       setLoading(false);
     }
@@ -75,6 +76,7 @@ export default function NotificationsPage() {
     try {
       // Marquer toutes les notifications du manager comme lues
       // NOTE: Le modèle actuel markAllAsRead prend un managerId
+      // Il faudrait s'assurer que managerId est valide ici.
       await notificationService.markAllAsRead(managerId);
       fetchNotifications(); // Recharger les notifications après la mise à jour
     } catch (error) {
@@ -112,65 +114,65 @@ export default function NotificationsPage() {
 
       <div className="space-y-3">
         <AnimatePresence mode="popLayout">
-          {notifications.map((n, i) => {
-            // Assurez-vous que le type de notification correspond à une clé valide dans notificationIcons
-            const config = notificationIcons[n.type as NotificationType] || notificationIcons.Autre;
-            return (
-              <motion.div
-                layout
-                initial={{ opacity: 0, x: -20 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, scale: 0.95 }}
-                key={n.id}
-                className={cn(
-                  "glass-card p-4 rounded-2xl flex items-center gap-4 group hover:border-white/20 transition-all",
-                  !n.lue && "border-l-4 border-l-orange-accent bg-white/[0.03]"
-                )}
-              >
-                <div className={cn("h-12 w-12 rounded-xl flex items-center justify-center shrink-0 border border-white/5", config.bg, config.color)}>
-                  <config.icon className="h-6 w-6" />
-                </div>
-
-                <div className="flex-1 min-w-0">
-                  <p className={cn("text-sm leading-snug", !n.lue ? "text-white font-semibold" : "text-muted-foreground")}>
-                    {n.message}
-                  </p>
-                  <p className="text-[10px] text-muted-foreground/60 mt-1 uppercase font-bold tracking-widest">
-                    {n.type} • {new Date(n.date_creation).toLocaleDateString('fr-FR')} {new Date(n.date_creation).toLocaleTimeString('fr-FR')}
-                  </p>
-                </div>
-
-                <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                  {!n.lue && (
-                    <button
-                      onClick={() => markAsRead(n.id)}
-                      className="p-2 hover:bg-forest-green/10 text-forest-green rounded-lg transition-colors" title="Marquer comme lu"
-                    >
-                      <CheckCircle2 className="h-4 w-4" />
-                    </button>
+          {notifications.length === 0 ? ( // Condition pour afficher le message "Aucune notification"
+            <div className="text-center py-20 bg-white/5 rounded-3xl border border-dashed border-white/10">
+              <Bell className="h-12 w-12 text-muted-foreground/30 mx-auto mb-4" />
+              <p className="text-muted-foreground italic">Aucune notification pour le moment.</p>
+            </div>
+          ) : (
+            notifications.map((n, i) => {
+              // Assurez-vous que le type de notification correspond à une clé valide dans notificationIcons
+              const config = notificationIcons[n.type as NotificationType] || notificationIcons.Autre;
+              return (
+                <motion.div
+                  layout
+                  initial={{ opacity: 0, x: -20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, scale: 0.95 }}
+                  key={n.id}
+                  className={cn(
+                    "glass-card p-4 rounded-2xl flex items-center gap-4 group hover:border-white/20 transition-all",
+                    !n.lue && "border-l-4 border-l-orange-accent bg-white/[0.03]"
                   )}
-                  <button
-                    onClick={() => deleteNotif(n.id)}
-                    className="p-2 hover:bg-destructive/10 text-destructive rounded-lg transition-colors" title="Supprimer"
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </button>
-                </div>
+                >
+                  <div className={cn("h-12 w-12 rounded-xl flex items-center justify-center shrink-0 border border-white/5", config.bg, config.color)}>
+                    <config.icon className="h-6 w-6" />
+                  </div>
 
-                {!n.lue && (
-                  <div className="h-2 w-2 rounded-full bg-orange-accent shadow-[0_0_8px_rgba(245,166,35,0.8)]" />
-                )}
-              </motion.div>
-            );
-          })}
+                  <div className="flex-1 min-w-0">
+                    <p className={cn("text-sm leading-snug", !n.lue ? "text-white font-semibold" : "text-muted-foreground")}>
+                      {n.message}
+                    </p>
+                    <p className="text-[10px] text-muted-foreground/60 mt-1 uppercase font-bold tracking-widest">
+                      {n.type} • {new Date(n.date_creation).toLocaleDateString('fr-FR')} {new Date(n.date_creation).toLocaleTimeString('fr-FR')}
+                    </p>
+                  </div>
+
+                  <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                    {!n.lue && (
+                      <button
+                        onClick={() => markAsRead(n.id)}
+                        className="p-2 hover:bg-forest-green/10 text-forest-green rounded-lg transition-colors" title="Marquer comme lu"
+                      >
+                        <CheckCircle2 className="h-4 w-4" />
+                      </button>
+                    )}
+                    <button
+                      onClick={() => deleteNotif(n.id)}
+                      className="p-2 hover:bg-destructive/10 text-destructive rounded-lg transition-colors" title="Supprimer"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </button>
+                  </div>
+
+                  {!n.lue && (
+                    <div className="h-2 w-2 rounded-full bg-orange-accent shadow-[0_0_8px_rgba(245,166,35,0.8)]" />
+                  )}
+                </motion.div>
+              );
+            })
+          )}
         </AnimatePresence>
-
-        {notifications.length === 0 && (
-          <div className="text-center py-20 bg-white/5 rounded-3xl border border-dashed border-white/10">
-            <Bell className="h-12 w-12 text-muted-foreground/30 mx-auto mb-4" />
-            <p className="text-muted-foreground italic">Aucune notification pour le moment.</p>
-          </div>
-        )}
       </div>
     </div>
   );
