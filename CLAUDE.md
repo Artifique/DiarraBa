@@ -1,44 +1,73 @@
-12:02:32.562 Running build in Washington, D.C., USA (East) – iad1
-12:02:32.562 Build machine configuration: 2 cores, 8 GB
-12:02:32.572 Cloning github.com/Artifique/DiarraBa (Branch: main, Commit: 92351ba)
-12:02:32.573 Skipping build cache, deployment was triggered without cache.
-12:02:32.826 Cloning completed: 254.000ms
-12:02:33.100 Running "vercel build"
-12:02:33.851 Vercel CLI 51.6.1
-12:02:34.124 Installing dependencies...
-12:02:49.644
-12:02:49.645 added 477 packages in 15s
-12:02:49.645
-12:02:49.645 153 packages are looking for funding
-12:02:49.645 run `npm fund` for details
-12:02:49.714 Detected Next.js version: 16.2.4
-12:02:49.719 Running "npm run build"
-12:02:49.824
-12:02:49.825 > diarraba-volailles@0.1.0 build
-12:02:49.825 > next build
-12:02:49.825
-12:02:50.455 Applying modifyConfig from Vercel
-12:02:50.460 Attention: Next.js now collects completely anonymous telemetry regarding usage.
-12:02:50.461 This information is used to shape Next.js' roadmap and prioritize features.
-12:02:50.462 You can learn more, including how to opt-out if you'd not like to participate in this anonymous program, by visiting the following URL:
-12:02:50.462 https://nextjs.org/telemetry
-12:02:50.462
-12:02:50.481 ▲ Next.js 16.2.4 (Turbopack)
-12:02:50.482
-12:02:50.513 Creating an optimized production build ...
-12:02:59.653 ✓ Compiled successfully in 8.8s
-12:02:59.655 Running TypeScript ...
-12:03:05.292 Failed to type check.
-12:03:05.293
-12:03:05.294 ./src/components/layout/sidebar.tsx:95:18
-12:03:05.294 Type error: JSX element type 'item.icon' does not have any construct or call signatures.
-12:03:05.294
-12:03:05.294 [90m93 |[0m <div className=[32m"absolute left-0 top-0 bottom-0 w-1 bg-orange-accent shad...[0m
-12:03:05.294 [90m94 |[0m )}
-12:03:05.294 [31m[1m>[0m [90m95 |[0m <item.icon className={cn(
-12:03:05.294 [90m |[0m [31m[1m^[0m
-12:03:05.294 [90m96 |[0m [32m"mr-3 h-5 w-5 transition-colors duration-300"[0m,
-12:03:05.295 [90m97 |[0m isActive ? [32m"text-orange-accent"[0m : [32m"text-foreground/40 group-hover:text-o...[0m
-12:03:05.295 [90m98 |[0m )} />
-12:03:05.332 Next.js build worker exited with code: 1 and signal: null
-12:03:05.370 Error: Command "npm run build" exited with 1
+# Guide d'utilisation Supabase - Projet DIARRABA
+
+Ce document explique comment configurer et utiliser Supabase pour le projet Diarraba.
+
+## 1. Configuration de l'environnement
+
+Créez un fichier `.env.local` à la racine du projet avec vos identifiants Supabase :
+
+```env
+NEXT_PUBLIC_SUPABASE_URL=https://votre-projet.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=votre-cle-anonyme
+```
+
+## 2. Initialisation de la Base de Données
+
+Pour configurer la structure de la base de données, copiez et exécutez le contenu du fichier `docs/schema.sql` dans l'éditeur SQL de votre tableau de bord Supabase.
+
+### Étapes :
+1. Allez sur [Supabase Dashboard](https://app.supabase.com/).
+2. Sélectionnez votre projet.
+3. Cliquez sur **SQL Editor** dans la barre latérale gauche.
+4. Cliquez sur **New Query**.
+5. Collez le contenu de `docs/schema.sql`.
+6. Cliquez sur **Run**.
+
+## 3. Structure des Tables
+
+Le projet utilise les tables principales suivantes :
+- `managers` : Profils administrateurs.
+- `clients` : Gestion du portefeuille client.
+- `fournisseurs` : Réseau de partenaires.
+- `volailles` : Inventaire des types de volailles et stocks.
+- `couveuses` : Parc d'équipement et disponibilité.
+- `reservations` : Commandes et locations.
+- `paiements` : Suivi des transactions financières.
+- `factures` : Documents comptables.
+- `notifications` : Alertes et rappels système.
+- `audit_logs` : Historique complet des actions.
+
+## 4. Requetes Utiles pour la Maintenance
+
+### Créer un premier manager
+```sql
+INSERT INTO managers (nom, email, telephone, mot_de_passe) 
+VALUES ('Administrateur', 'admin@volaille.com', '+221XXXXXXXXX', 'mot_de_passe_en_clair_ou_hash');
+```
+
+### Vérifier le stock bas
+```sql
+SELECT type, quantite_disponible 
+FROM volailles 
+WHERE quantite_disponible < 50;
+```
+
+### Voir les revenus mensuels
+```sql
+SELECT date_trunc('month', date_paiement) as mois, sum(montant) as total
+FROM paiements
+WHERE statut = 'Completed'
+GROUP BY mois
+ORDER BY mois DESC;
+```
+
+## 5. Automatisation (Triggers)
+
+Le schéma SQL inclut des triggers automatiques pour :
+1. **Mise à jour des factures** : Le montant payé et le restant sont recalculés après chaque insertion dans la table `paiements`.
+2. **Calcul des prix** : Le `prix_total` des réservations est automatiquement mis à jour selon les articles ajoutés.
+3. **Audit** : Toutes les modifications (INSERT, UPDATE, DELETE) sur les tables clés sont enregistrées dans `audit_logs`.
+
+## 6. Types TypeScript
+
+Si vous modifiez le schéma, n'oubliez pas de mettre à jour `src/types/database.ts` pour maintenir la sécurité du typage dans l'application.

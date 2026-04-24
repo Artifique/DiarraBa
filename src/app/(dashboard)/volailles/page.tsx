@@ -10,9 +10,10 @@ import {
   AlertTriangle,
   Package,
   Trash2,
-  Grid3X3,
-  List,
-  Loader2
+  Pencil,
+  Eye,
+  Loader2,
+  MoreVertical
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
@@ -24,6 +25,12 @@ import {
   DialogDescription,
   DialogFooter
 } from "@/components/ui/dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -46,23 +53,25 @@ export default function VolaillesPage() {
   const [loading, setLoading] = useState(true);
   const [volailles, setVolailles] = useState<(Volaille & { fournisseur_nom?: string })[]>([]);
   const [fournisseurs, setFournisseurs] = useState<Fournisseur[]>([]);
-  const [view, setView] = useState<"grid" | "list">("grid");
+  
   const [isOpen, setIsOpen] = useState(false);
+  const [isEditOpen, setIsEditOpen] = useState(false);
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
-  const [itemToDelete, setItemToDelete] = useState<string | null>(null);
+  const [selectedVolaille, setSelectedVolaille] = useState<Volaille | null>(null);
 
   // Pagination and filtering
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage] = useState(10);
   const [dateFilter, setDateFilter] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
-  const [statusFilter, setStatusFilter] = useState("");
+  const [statusFilter, setStatusFilter] = useState("all");
 
-  const [newVolaille, setNewVolaille] = useState({ 
+  const [formData, setFormData] = useState({ 
     type: "Poussin" as VolailleType, 
     quantite_disponible: 0, 
     prix_unitaire: 0, 
-    fournisseur_id: "" 
+    fournisseur_id: "",
+    description: ""
   });
 
   const fetchData = useCallback(async () => {
@@ -96,39 +105,76 @@ export default function VolaillesPage() {
   }, [fetchData]);
 
   const handleAdd = async () => {
-    if (!newVolaille.fournisseur_id) {
-      alert("Veuillez sélectionner un fournisseur");
-      return;
-    }
+    if (!formData.fournisseur_id) return;
     try {
       const supabase = createClient();
       const model = new VolailleModel(supabase);
       await model.create({
-        ...newVolaille,
-        actif: true,
-        description: null
+        type: formData.type,
+        quantite_disponible: formData.quantite_disponible,
+        prix_unitaire: formData.prix_unitaire,
+        fournisseur_id: formData.fournisseur_id,
+        description: formData.description,
+        actif: true
       });
       setIsOpen(false);
-      setNewVolaille({ type: "Poussin", quantite_disponible: 0, prix_unitaire: 0, fournisseur_id: "" });
+      resetForm();
       fetchData();
     } catch (error) {
       console.error("Error creating volaille:", error);
     }
   };
 
+  const handleEdit = async () => {
+    if (!selectedVolaille) return;
+    try {
+      const supabase = createClient();
+      const model = new VolailleModel(supabase);
+      await model.update(selectedVolaille.id, {
+        type: formData.type,
+        quantite_disponible: formData.quantite_disponible,
+        prix_unitaire: formData.prix_unitaire,
+        fournisseur_id: formData.fournisseur_id,
+        description: formData.description
+      });
+      setIsEditOpen(false);
+      resetForm();
+      fetchData();
+    } catch (error) {
+      console.error("Error updating volaille:", error);
+    }
+  };
+
   const handleDelete = async () => {
-    if (itemToDelete) {
+    if (selectedVolaille) {
       try {
         const supabase = createClient();
         const model = new VolailleModel(supabase);
-        await model.delete(itemToDelete);
+        await model.delete(selectedVolaille.id);
         setDeleteConfirmOpen(false);
-        setItemToDelete(null);
+        setSelectedVolaille(null);
         fetchData();
       } catch (error) {
         console.error("Error deleting volaille:", error);
       }
     }
+  };
+
+  const resetForm = () => {
+    setFormData({ type: "Poussin", quantite_disponible: 0, prix_unitaire: 0, fournisseur_id: "", description: "" });
+    setSelectedVolaille(null);
+  };
+
+  const openEdit = (v: Volaille) => {
+    setSelectedVolaille(v);
+    setFormData({
+      type: v.type,
+      quantite_disponible: v.quantite_disponible,
+      prix_unitaire: Number(v.prix_unitaire),
+      fournisseur_id: v.fournisseur_id,
+      description: v.description || ""
+    });
+    setIsEditOpen(true);
   };
 
   const getStatus = (qte: number) => {
@@ -137,32 +183,12 @@ export default function VolaillesPage() {
     return "En Stock";
   };
 
-  const getStatusColor = (statut: string) => {
-    switch (statut) {
-      case "En Stock": return "text-forest-green";
-      case "Stock Bas": return "text-yellow-500";
-      case "Rupture": return "text-destructive";
-      default: return "text-muted-foreground";
-    }
-  };
-
-  const getStatusIcon = (statut: string) => {
-    switch (statut) {
-      case "En Stock": return <CheckCircle2 className="h-4 w-4" />;
-      case "Stock Bas": return <AlertTriangle className="h-4 w-4" />;
-      case "Rupture": return <Package className="h-4 w-4" />;
-      default: return null;
-    }
-  };
-
   const filteredVolailles = volailles.filter((v) => {
     const statut = getStatus(v.quantite_disponible);
-    const matchesSearch =
-      v.type.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      v.fournisseur_nom?.toLowerCase().includes(searchTerm.toLowerCase());
-
+    const matchesSearch = v.type.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         v.fournisseur_nom?.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesDate = !dateFilter || v.date_ajout.startsWith(dateFilter);
-    const matchesStatus = !statusFilter || statut === statusFilter;
+    const matchesStatus = statusFilter === "all" || statut === statusFilter;
 
     return matchesSearch && matchesDate && matchesStatus;
   });
@@ -178,312 +204,202 @@ export default function VolaillesPage() {
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h2 className="text-2xl font-display font-bold text-white">Inventaire des Volailles</h2>
-          <p className="text-sm text-muted-foreground">Gérez votre stock de volailles et les alertes de réapprovisionnement.</p>
+          <p className="text-sm text-muted-foreground">Gestion centralisée du stock et des approvisionnements.</p>
         </div>
 
-        <div className="flex items-center gap-2">
-          <Button
-            variant={view === "grid" ? "default" : "outline"}
-            size="sm"
-            onClick={() => setView("grid")}
-            className={view === "grid" ? "bg-orange-accent text-night" : "border-white/10 text-white hover:bg-white/5"}
-          >
-            <Grid3X3 className="h-4 w-4" />
-          </Button>
-          <Button
-            variant={view === "list" ? "default" : "outline"}
-            size="sm"
-            onClick={() => setView("list")}
-            className={view === "list" ? "bg-orange-accent text-night" : "border-white/10 text-white hover:bg-white/5"}
-          >
-            <List className="h-4 w-4" />
-          </Button>
-
-          <Dialog open={isOpen} onOpenChange={setIsOpen}>
-            <DialogTrigger asChild>
-              <Button className="bg-orange-accent text-night font-bold hover:bg-orange-accent/90 orange-glow-hover rounded-xl">
-                <Plus className="h-5 w-5 mr-2" />
-                Ajouter une Volaille
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="bg-night border-white/10 text-white sm:max-w-lg overflow-hidden">
-              <DialogHeader>
-                <DialogTitle className="text-white font-display text-xl">Nouvelle Volaille</DialogTitle>
-                <DialogDescription className="text-muted-foreground">
-                  Ajoutez une nouvelle volaille à votre inventaire.
-                </DialogDescription>
-              </DialogHeader>
-              <div className="grid gap-6 py-4">
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label className="text-xs uppercase tracking-widest font-bold text-white/70">Type</Label>
-                    <Select 
-                      value={newVolaille.type} 
-                      onValueChange={(val: VolailleType) => setNewVolaille({...newVolaille, type: val})}
-                    >
-                      <SelectTrigger className="bg-white/5 border-white/10 text-white">
-                        <SelectValue placeholder="Type de volaille" />
-                      </SelectTrigger>
-                      <SelectContent className="bg-night border-white/10">
-                        {VOLAILLE_TYPES.map(type => (
-                          <SelectItem key={type} value={type}>{type}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="space-y-2">
-                    <Label className="text-xs uppercase tracking-widest font-bold text-white/70">Quantité</Label>
-                    <Input
-                      type="number"
-                      value={newVolaille.quantite_disponible}
-                      onChange={(e) => setNewVolaille({...newVolaille, quantite_disponible: parseInt(e.target.value) || 0})}
-                      className="bg-white/5 border-white/10 text-white"
-                      placeholder="0"
-                    />
-                  </div>
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label className="text-xs uppercase tracking-widest font-bold text-white/70">Prix (FCFA)</Label>
-                    <Input
-                      type="number"
-                      value={newVolaille.prix_unitaire}
-                      onChange={(e) => setNewVolaille({...newVolaille, prix_unitaire: parseInt(e.target.value) || 0})}
-                      className="bg-white/5 border-white/10 text-white"
-                      placeholder="0"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label className="text-xs uppercase tracking-widest font-bold text-white/70">Fournisseur</Label>
-                    <Select 
-                      value={newVolaille.fournisseur_id} 
-                      onValueChange={(val) => setNewVolaille({...newVolaille, fournisseur_id: val})}
-                    >
-                      <SelectTrigger className="bg-white/5 border-white/10 text-white">
-                        <SelectValue placeholder="Choisir un fournisseur" />
-                      </SelectTrigger>
-                      <SelectContent className="bg-night border-white/10">
-                        {fournisseurs.map(f => (
-                          <SelectItem key={f.id} value={f.id}>{f.nom}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-              </div>
-              <DialogFooter>
-                <Button variant="outline" onClick={() => setIsOpen(false)} className="border-white/10 text-white hover:bg-white/5">Annuler</Button>
-                <Button onClick={handleAdd} className="bg-orange-accent text-night font-bold hover:bg-orange-accent/90">
-                  Ajouter au Stock
-                </Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
-        </div>
+        <Button 
+          onClick={() => { resetForm(); setIsOpen(true); }}
+          className="bg-orange-accent text-night font-bold hover:bg-orange-accent/90 orange-glow-hover rounded-xl"
+        >
+          <Plus className="h-5 w-5 mr-2" /> Ajouter au Stock
+        </Button>
       </div>
 
-      {/* Filters */}
       <div className="flex flex-col sm:flex-row gap-4">
         <div className="relative group flex-1 max-w-md">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground group-focus-within:text-orange-accent transition-colors" />
           <Input
             type="text"
-            placeholder="Rechercher une volaille..."
+            placeholder="Rechercher..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="bg-white/5 border-white/10 text-white placeholder:text-muted-foreground pl-10"
+            className="bg-white/5 border-white/10 text-white pl-10"
           />
         </div>
         <Select value={statusFilter} onValueChange={setStatusFilter}>
           <SelectTrigger className="w-[180px] bg-white/5 border-white/10 text-white">
             <SelectValue placeholder="Tous les statuts" />
           </SelectTrigger>
-          <SelectContent className="bg-night border-white/10">
-            <SelectItem value="null">Tous les statuts</SelectItem>
+          <SelectContent className="bg-night border-white/10 text-white">
+            <SelectItem value="all">Tous les statuts</SelectItem>
             <SelectItem value="En Stock">En Stock</SelectItem>
             <SelectItem value="Stock Bas">Stock Bas</SelectItem>
             <SelectItem value="Rupture">Rupture</SelectItem>
           </SelectContent>
         </Select>
-        <DateFilter
-          value={dateFilter}
-          onChange={setDateFilter}
-          placeholder="Filtrer par date d'ajout"
-          className="max-w-xs"
-        />
+        <DateFilter value={dateFilter} onChange={setDateFilter} className="max-w-xs" />
       </div>
 
-      {loading ? (
-        <div className="py-24 flex flex-col items-center justify-center space-y-4">
-          <Loader2 className="h-12 w-12 animate-spin text-orange-accent" />
-          <p className="text-muted-foreground animate-pulse">Chargement de l'inventaire...</p>
-        </div>
-      ) : (
-        <>
-          {view === "grid" ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-              <AnimatePresence mode="popLayout">
-                {paginatedVolailles.map((volaille) => {
-                  const statut = getStatus(volaille.quantite_disponible);
-                  return (
-                    <motion.div
-                      layout
-                      initial={{ opacity: 0, scale: 0.9 }}
-                      animate={{ opacity: 1, scale: 1 }}
-                      exit={{ opacity: 0, scale: 0.9 }}
-                      key={volaille.id}
-                      className="glass-card rounded-2xl p-6 border border-white/5 hover:border-orange-accent/20 transition-colors group"
-                    >
-                      <div className="flex items-start justify-between mb-4">
-                        <div className="h-12 w-12 rounded-xl bg-orange-accent/10 border border-orange-accent/20 flex items-center justify-center text-orange-accent">
-                          <Bird className="h-6 w-6" />
-                        </div>
-                        <div className="flex items-center gap-1">
-                          {getStatusIcon(statut)}
-                          <span className={cn("text-xs font-bold", getStatusColor(statut))}>
+      <div className="glass-card rounded-2xl overflow-hidden border border-white/5">
+        <div className="overflow-x-auto custom-scrollbar">
+          <table className="w-full text-left">
+            <thead className="bg-white/5 border-b border-white/5">
+              <tr className="text-[10px] uppercase tracking-widest text-muted-foreground">
+                <th className="px-6 py-4 font-bold">Type de Volaille</th>
+                <th className="px-6 py-4 font-bold">Fournisseur</th>
+                <th className="px-6 py-4 font-bold">Quantité</th>
+                <th className="px-6 py-4 font-bold">Prix Unitaire</th>
+                <th className="px-6 py-4 font-bold">Statut</th>
+                <th className="px-6 py-4 font-bold text-right">Actions</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-white/5">
+              {loading ? (
+                <tr>
+                  <td colSpan={6} className="px-6 py-12 text-center">
+                    <Loader2 className="h-8 w-8 animate-spin text-orange-accent mx-auto" />
+                  </td>
+                </tr>
+              ) : (
+                <AnimatePresence mode="popLayout">
+                  {paginatedVolailles.map((v) => {
+                    const statut = getStatus(v.quantite_disponible);
+                    return (
+                      <motion.tr
+                        layout
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        key={v.id}
+                        className="group hover:bg-white/[0.02] transition-colors"
+                      >
+                        <td className="px-6 py-4">
+                          <div className="flex items-center gap-3">
+                            <div className="h-10 w-10 rounded-full bg-orange-accent/10 flex items-center justify-center text-orange-accent">
+                              <Bird className="h-5 w-5" />
+                            </div>
+                            <div>
+                              <p className="text-sm font-bold text-white">{v.type}</p>
+                              <p className="text-[10px] text-muted-foreground uppercase">ID: {v.id.slice(0, 8)}</p>
+                            </div>
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 text-sm text-white">
+                          {v.fournisseur_nom}
+                        </td>
+                        <td className="px-6 py-4 font-mono font-bold text-white">
+                          {v.quantite_disponible}
+                        </td>
+                        <td className="px-6 py-4 font-mono font-bold text-white">
+                          {Number(v.prix_unitaire).toLocaleString()} FCFA
+                        </td>
+                        <td className="px-6 py-4">
+                          <span className={cn(
+                            "inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider",
+                            statut === "En Stock" ? "bg-forest-green/10 text-forest-green border border-forest-green/20" :
+                            statut === "Stock Bas" ? "bg-yellow-500/10 text-yellow-500 border border-yellow-500/20" :
+                            "bg-destructive/10 text-destructive border border-destructive/20"
+                          )}>
+                            {statut === "En Stock" ? <CheckCircle2 className="h-3 w-3" /> :
+                             statut === "Stock Bas" ? <AlertTriangle className="h-3 w-3" /> :
+                             <Package className="h-3 w-3" />}
                             {statut}
                           </span>
-                        </div>
-                      </div>
-
-                      <div className="space-y-3">
-                        <div>
-                          <h3 className="text-lg font-display font-bold text-white">{volaille.type}</h3>
-                          <p className="text-xs text-muted-foreground">ID: #{volaille.id.slice(0, 8)}</p>
-                        </div>
-
-                        <div className="space-y-2">
-                          <div className="flex justify-between text-sm">
-                            <span className="text-muted-foreground">Quantité:</span>
-                            <span className="text-white font-mono font-bold">{volaille.quantite_disponible}</span>
-                          </div>
-                          <div className="flex justify-between text-sm">
-                            <span className="text-muted-foreground">Prix:</span>
-                            <span className="text-white font-mono font-bold">{volaille.prix_unitaire.toLocaleString()} FCFA</span>
-                          </div>
-                          <div className="flex justify-between text-sm">
-                            <span className="text-muted-foreground">Fournisseur:</span>
-                            <span className="text-white truncate max-w-[120px]" title={volaille.fournisseur_nom}>
-                              {volaille.fournisseur_nom}
-                            </span>
-                          </div>
-                        </div>
-
-                        <div className="pt-2 border-t border-white/5">
-                          <p className="text-[10px] text-muted-foreground uppercase tracking-widest">
-                            Ajouté le {new Date(volaille.date_ajout).toLocaleDateString('fr-FR')}
-                          </p>
-                        </div>
-                      </div>
-
-                      <div className="flex justify-end mt-4">
-                        <button
-                          onClick={() => { setItemToDelete(volaille.id); setDeleteConfirmOpen(true); }}
-                          className="p-2 hover:bg-destructive/10 rounded-lg transition-colors text-muted-foreground hover:text-destructive"
-                          title="Supprimer"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </button>
-                      </div>
-                    </motion.div>
-                  );
-                })}
-              </AnimatePresence>
-            </div>
-          ) : (
-            <div className="glass-card rounded-2xl overflow-hidden border border-white/5">
-              <div className="overflow-x-auto custom-scrollbar">
-                <table className="w-full text-left">
-                  <thead className="bg-white/5 border-b border-white/5">
-                    <tr className="text-[10px] uppercase tracking-widest text-muted-foreground">
-                      <th className="px-6 py-4 font-bold">Volaille</th>
-                      <th className="px-6 py-4 font-bold">Quantité</th>
-                      <th className="px-6 py-4 font-bold">Prix</th>
-                      <th className="px-6 py-4 font-bold">Fournisseur</th>
-                      <th className="px-6 py-4 font-bold">Statut</th>
-                      <th className="px-6 py-4 font-bold text-right">Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-white/5">
-                    <AnimatePresence mode="popLayout">
-                      {paginatedVolailles.map((volaille) => {
-                        const statut = getStatus(volaille.quantite_disponible);
-                        return (
-                          <motion.tr
-                            layout
-                            initial={{ opacity: 0 }}
-                            animate={{ opacity: 1 }}
-                            exit={{ opacity: 0 }}
-                            key={volaille.id}
-                            className="group hover:bg-white/[0.02] transition-colors"
-                          >
-                            <td className="px-6 py-4">
-                              <div className="flex items-center gap-3">
-                                <div className="h-10 w-10 rounded-full bg-orange-accent/10 border border-orange-accent/20 flex items-center justify-center text-orange-accent">
-                                  <Bird className="h-5 w-5" />
-                                </div>
-                                <div>
-                                  <p className="text-sm font-bold text-white">{volaille.type}</p>
-                                  <p className="text-[10px] text-muted-foreground">ID: #{volaille.id.slice(0, 8)}</p>
-                                </div>
-                              </div>
-                            </td>
-                            <td className="px-6 py-4">
-                              <p className="text-sm font-mono font-bold text-white">{volaille.quantite_disponible}</p>
-                            </td>
-                            <td className="px-6 py-4">
-                              <p className="text-sm font-mono font-bold text-white">{volaille.prix_unitaire.toLocaleString()} FCFA</p>
-                            </td>
-                            <td className="px-6 py-4 text-sm text-muted-foreground">
-                              {volaille.fournisseur_nom}
-                            </td>
-                            <td className="px-6 py-4">
-                              <div className="flex items-center gap-2">
-                                {getStatusIcon(statut)}
-                                <span className={cn("text-xs font-bold", getStatusColor(statut))}>
-                                  {statut}
-                                </span>
-                              </div>
-                            </td>
-                            <td className="px-6 py-4 text-right">
-                              <button
-                                onClick={() => { setItemToDelete(volaille.id); setDeleteConfirmOpen(true); }}
-                                className="p-2 hover:bg-destructive/10 rounded-lg transition-colors text-muted-foreground hover:text-destructive"
-                                title="Supprimer"
+                        </td>
+                        <td className="px-6 py-4 text-right">
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="ghost" className="h-8 w-8 p-0 text-muted-foreground hover:text-white">
+                                <MoreVertical className="h-4 w-4" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end" className="bg-night border-white/10 text-white">
+                              <DropdownMenuItem onClick={() => openEdit(v)} className="hover:bg-white/5 cursor-pointer">
+                                <Pencil className="h-4 w-4 mr-2" /> Modifier
+                              </DropdownMenuItem>
+                              <DropdownMenuItem 
+                                onClick={() => { setSelectedVolaille(v); setDeleteConfirmOpen(true); }} 
+                                className="text-destructive hover:bg-destructive/10 cursor-pointer"
                               >
-                                <Trash2 className="h-4 w-4" />
-                              </button>
-                            </td>
-                          </motion.tr>
-                        );
-                      })}
-                    </AnimatePresence>
-                  </tbody>
-                </table>
+                                <Trash2 className="h-4 w-4 mr-2" /> Supprimer
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </td>
+                      </motion.tr>
+                    );
+                  })}
+                </AnimatePresence>
+              )}
+            </tbody>
+          </table>
+        </div>
+
+        {totalPages > 1 && (
+          <div className="px-6 py-4 border-t border-white/5">
+            <Pagination currentPage={currentPage} totalPages={totalPages} onPageChange={setCurrentPage} />
+          </div>
+        )}
+      </div>
+
+      {/* Modal Add/Edit */}
+      <Dialog open={isOpen || isEditOpen} onOpenChange={(val) => { if(!val) { resetForm(); setIsOpen(false); setIsEditOpen(false); } }}>
+        <DialogContent className="bg-night border-white/10 text-white sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="text-white font-display text-xl">{isEditOpen ? "Modifier Volaille" : "Ajouter une Volaille"}</DialogTitle>
+            <DialogDescription className="text-muted-foreground">Renseignez les détails de l'article en inventaire.</DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-6 py-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label className="text-xs uppercase tracking-widest font-bold text-white/70">Type</Label>
+                <Select value={formData.type} onValueChange={(val: VolailleType) => setFormData({...formData, type: val})}>
+                  <SelectTrigger className="bg-white/5 border-white/10 text-white"><SelectValue /></SelectTrigger>
+                  <SelectContent className="bg-night border-white/10 text-white">
+                    {VOLAILLE_TYPES.map(t => <SelectItem key={t} value={t}>{t}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label className="text-xs uppercase tracking-widest font-bold text-white/70">Fournisseur</Label>
+                <Select value={formData.fournisseur_id} onValueChange={(val) => setFormData({...formData, fournisseur_id: val})}>
+                  <SelectTrigger className="bg-white/5 border-white/10 text-white"><SelectValue placeholder="Choisir..." /></SelectTrigger>
+                  <SelectContent className="bg-night border-white/10 text-white">
+                    {fournisseurs.map(f => <SelectItem key={f.id} value={f.id}>{f.nom}</SelectItem>)}
+                  </SelectContent>
+                </Select>
               </div>
             </div>
-          )}
-
-          {totalPages > 1 && (
-            <div className="flex justify-center mt-6">
-              <Pagination
-                currentPage={currentPage}
-                totalPages={totalPages}
-                onPageChange={setCurrentPage}
-              />
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label className="text-xs uppercase tracking-widest font-bold text-white/70">Quantité</Label>
+                <Input type="number" value={formData.quantite_disponible} onChange={(e) => setFormData({...formData, quantite_disponible: parseInt(e.target.value) || 0})} className="bg-white/5 border-white/10 text-white" />
+              </div>
+              <div className="space-y-2">
+                <Label className="text-xs uppercase tracking-widest font-bold text-white/70">Prix Unitaire (FCFA)</Label>
+                <Input type="number" value={formData.prix_unitaire} onChange={(e) => setFormData({...formData, prix_unitaire: parseInt(e.target.value) || 0})} className="bg-white/5 border-white/10 text-white" />
+              </div>
             </div>
-          )}
-        </>
-      )}
+            <div className="space-y-2">
+              <Label className="text-xs uppercase tracking-widest font-bold text-white/70">Description</Label>
+              <Input value={formData.description} onChange={(e) => setFormData({...formData, description: e.target.value})} className="bg-white/5 border-white/10 text-white" placeholder="Optionnel..." />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => { setIsOpen(false); setIsEditOpen(false); }} className="border-white/10 text-white hover:bg-white/5">Annuler</Button>
+            <Button onClick={isEditOpen ? handleEdit : handleAdd} className="bg-orange-accent text-night font-bold hover:bg-orange-accent/90">
+              {isEditOpen ? "Sauvegarder" : "Enregistrer"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
-      {/* Delete Confirmation Dialog */}
+      {/* Delete Confirm */}
       <Dialog open={deleteConfirmOpen} onOpenChange={setDeleteConfirmOpen}>
         <DialogContent className="bg-night border-white/10 text-white sm:max-w-md">
           <DialogHeader>
-            <DialogTitle className="text-white font-display text-xl">Confirmer la suppression</DialogTitle>
-            <DialogDescription className="text-muted-foreground">
-              Êtes-vous sûr de vouloir supprimer cette volaille de l'inventaire ? Cette action est irréversible.
-            </DialogDescription>
+            <DialogTitle className="text-white">Confirmer la suppression</DialogTitle>
+            <DialogDescription className="text-muted-foreground">Cette action est irréversible. Voulez-vous continuer ?</DialogDescription>
           </DialogHeader>
           <DialogFooter>
             <Button variant="outline" onClick={() => setDeleteConfirmOpen(false)} className="border-white/10 text-white hover:bg-white/5">Annuler</Button>
