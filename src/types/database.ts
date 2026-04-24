@@ -166,7 +166,7 @@ export interface Facture {
   date_modification: string;
 }
 
-export type NotificationType = 'Reservation' | 'Paiement' | 'Livraison' | 'Alerte' | 'Autre';
+export type NotificationType = 'Reservation' | 'Paiement' | 'Livraison' | 'Alerte' | 'Autre' | 'Facture';
 
 export interface Notification {
   id: string;

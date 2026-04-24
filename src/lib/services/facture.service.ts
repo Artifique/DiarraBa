@@ -2,11 +2,13 @@
 import { createClient } from "@/lib/supabase";
 import { FactureModel } from "@/lib/models/facture.model";
 import { AuditModel } from "@/lib/models/audit.model";
+import { NotificationModel } from "@/lib/models/notification.model"; // Ajouté
 import { Facture, StatutFacture } from "@/types/database";
 
 const supabase = createClient();
 const factureModel = new FactureModel(supabase);
 const auditModel = new AuditModel(supabase);
+const notificationModel = new NotificationModel(supabase); // Ajouté
 
 export const factureService = {
   async getAll(): Promise<Facture[]> {
@@ -52,6 +54,16 @@ export const factureService = {
     if (!oldFacture) throw new Error("Facture non trouvée");
 
     const facture = await factureModel.updateStatut(id, statut);
+
+    // Créer une notification pour le changement de statut de la facture
+    await notificationModel.create({
+      manager_id: managerId,
+      client_id: null, // Dépendra si on peut récupérer le client de la facture
+      fournisseur_id: null,
+      type: "Facture", // Nouveau type de notification
+      message: `Statut de la facture ${facture.numero} mis à jour : ${oldFacture.statut} -> ${facture.statut}`,
+      lue: false,
+    });
 
     await auditModel.create({
       manager_id: managerId,

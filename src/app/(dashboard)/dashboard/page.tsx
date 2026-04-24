@@ -26,7 +26,7 @@ import {
 } from "recharts";
 import { createClient } from "@/lib/supabase";
 import { DashboardService } from "@/lib/services/dashboard.service";
-import { NotificationService } from "@/lib/services/notification.service";
+import { notificationService } from "@/lib/services";
 import { ManagerModel } from "@/lib/models/manager.model";
 import { cn } from "@/lib/utils";
 
@@ -67,7 +67,6 @@ export default function DashboardPage() {
       try {
         const supabase = createClient();
         const service = new DashboardService(supabase);
-        const notifService = new NotificationService(supabase);
         const managerModel = new ManagerModel(supabase);
 
         const [globalStats, distribution, history, recent, managerData] = await Promise.all([
@@ -79,7 +78,7 @@ export default function DashboardPage() {
         ]);
 
         if (managerData) {
-          await notifService.checkAndGenerateNotifications(managerData.id);
+          await notificationService.checkAndGenerateNotifications(managerData.id);
         }
 
         setStats([

@@ -1,9 +1,28 @@
-requests.js:1
-POST https://nbyflhgapmkmtohpdiim.supabase.co/rest/v1/paiements?select=* 400 (Bad Request)
-0dm~74hakvvos.js:29 Error registering payment: Error: Erreur création paiement: new row for relation "paiements" violates check constraint "paiements_methode_check"
-at Object.create (0dm~74hakvvos.js:29:1159)
-at async G (0dm~74hakvvos.js:29:3246)
 
-﻿
+-- ============================================================================
+-- CORRECTIF POUR L'ERREUR DE PAIEMENT (CONTRAINTE MÉTHODE)
+-- ============================================================================
 
-Write a comment to generate code. Try typing: '// add red borders to all the divs'. NEW
+-- 1. Supprimer l'ancienne contrainte de méthode
+ALTER TABLE paiements DROP CONSTRAINT IF EXISTS paiements_methode_check;
+
+-- 2. Ajouter la nouvelle contrainte incluant les méthodes courantes
+-- J'ai ajouté 'Orange Money', 'Mobile Money', 'Wave', 'Espece' (sans s) au cas où.
+ALTER TABLE paiements ADD CONSTRAINT paiements_methode_check 
+CHECK (methode IN (
+    'Especes', 
+    'Espece',
+    'Cheque', 
+    'Virement', 
+    'Carte', 
+    'Orange Money', 
+    'Mobile Money', 
+    'Wave', 
+    'Moov Money',
+    'Autre'
+));
+
+-- 3. (Optionnel) Si vous avez aussi une erreur sur le statut, voici comment le corriger :
+ALTER TABLE paiements DROP CONSTRAINT IF EXISTS paiements_statut_check;
+ALTER TABLE paiements ADD CONSTRAINT paiements_statut_check 
+CHECK (statut IN ('Pending', 'Completed', 'Failed', 'En attente', 'Terminé', 'Échoué'));
