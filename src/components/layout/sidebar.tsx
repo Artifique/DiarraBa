@@ -54,7 +54,7 @@ export function Sidebar() {
 
   return (
     <aside className={cn(
-      "fixed left-0 top-0 z-40 h-screen transition-all duration-300 bg-night/95 backdrop-blur-xl border-r border-white/5",
+      "fixed left-0 top-0 z-40 h-screen transition-all duration-300 bg-night/95 backdrop-blur-xl border-r border-white/5 flex flex-col",
       "w-[70px] lg:w-[260px]", // Par défaut icônes seules, large sur grand écran
       collapsed ? "lg:w-[70px]" : "lg:w-[260px]" // Toggle manuel sur desktop
     )}>
