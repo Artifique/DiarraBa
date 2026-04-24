@@ -9,3 +9,4 @@ export { factureService } from "./facture.service";
 export { livraisonService } from "./livraison.service";
 export { NotificationService } from "./notification.service";
 export { auditService } from "./audit.service";
+export { settingsService } from "./settings.service";

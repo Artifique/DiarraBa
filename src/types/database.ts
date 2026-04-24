@@ -11,7 +11,18 @@ export type TableName =
   | 'livraisons'
   | 'factures'
   | 'notifications'
-  | 'audit_logs';
+  | 'audit_logs'
+  | 'settings'; // Nouvelle table
+
+export interface Setting {
+  id: string;
+  key: string; // Par exemple, 'email_notifications_enabled', 'app_theme'
+  value: string; // La valeur du paramètre, peut être JSON stringifié si complexe
+  type: 'string' | 'number' | 'boolean' | 'json'; // Type de la valeur pour faciliter le parsing
+  description?: string; // Description du paramètre
+  date_creation: string;
+  date_modification: string;
+}
 
 export interface Manager {
   id: string;

@@ -10,3 +10,4 @@ export { LivraisonModel } from "./livraison.model";
 export { NotificationModel } from "./notification.model";
 export { AuditModel } from "./audit.model";
 export { ManagerModel } from "./manager.model";
+export { SettingsModel } from "./settings.model";
