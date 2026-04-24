@@ -10,7 +10,11 @@ import {
   Activity,
   History,
   Trash2,
-  Loader2
+  Pencil,
+  Loader2,
+  MoreVertical,
+  CheckCircle2,
+  XCircle
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { 
@@ -22,9 +26,16 @@ import {
   DialogDescription,
   DialogFooter
 } from "@/components/ui/dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Pagination } from "@/components/ui/pagination";
 import {
   Select,
   SelectContent,
@@ -40,12 +51,25 @@ export default function CouveusesPage() {
   const [loading, setLoading] = useState(true);
   const [couveuses, setCouveuses] = useState<(Couveuse & { fournisseur_nom?: string })[]>([]);
   const [fournisseurs, setFournisseurs] = useState<Fournisseur[]>([]);
+  
   const [isOpen, setIsOpen] = useState(false);
-  const [newCouveuse, setNewCouveuse] = useState({ 
+  const [isEditOpen, setIsEditOpen] = useState(false);
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [selectedCouveuse, setSelectedCouveuse] = useState<Couveuse | null>(null);
+
+  // Pagination and filtering
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage] = useState(10);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [statusFilter, setStatusFilter] = useState("all");
+
+  const [formData, setFormData] = useState({ 
     modele: "", 
     capacite: 0, 
     prix_location_par_jour: 0, 
-    fournisseur_id: "" 
+    fournisseur_id: "",
+    description: "",
+    disponible: true
   });
 
   const fetchData = useCallback(async () => {
@@ -79,33 +103,56 @@ export default function CouveusesPage() {
   }, [fetchData]);
 
   const handleAdd = async () => {
-    if (!newCouveuse.modele || !newCouveuse.fournisseur_id) {
-      alert("Veuillez remplir tous les champs obligatoires");
-      return;
-    }
+    if (!formData.modele || !formData.fournisseur_id) return;
     try {
       const supabase = createClient();
       const model = new CouveuseModel(supabase);
       await model.create({
-        ...newCouveuse,
-        actif: true,
-        disponible: true,
-        description: null
+        modele: formData.modele,
+        capacite: formData.capacite,
+        prix_location_par_jour: formData.prix_location_par_jour,
+        fournisseur_id: formData.fournisseur_id,
+        description: formData.description,
+        disponible: formData.disponible,
+        actif: true
       });
       setIsOpen(false);
-      setNewCouveuse({ modele: "", capacite: 0, prix_location_par_jour: 0, fournisseur_id: "" });
+      resetForm();
       fetchData();
     } catch (error) {
       console.error("Error creating couveuse:", error);
     }
   };
 
-  const handleDelete = async (id: string) => {
-    if (confirm("Êtes-vous sûr de vouloir supprimer cette couveuse ?")) {
+  const handleEdit = async () => {
+    if (!selectedCouveuse) return;
+    try {
+      const supabase = createClient();
+      const model = new CouveuseModel(supabase);
+      await model.update(selectedCouveuse.id, {
+        modele: formData.modele,
+        capacite: formData.capacite,
+        prix_location_par_jour: formData.prix_location_par_jour,
+        fournisseur_id: formData.fournisseur_id,
+        description: formData.description,
+        disponible: formData.disponible
+      });
+      setIsEditOpen(false);
+      resetForm();
+      fetchData();
+    } catch (error) {
+      console.error("Error updating couveuse:", error);
+    }
+  };
+
+  const handleDelete = async () => {
+    if (selectedCouveuse) {
       try {
         const supabase = createClient();
         const model = new CouveuseModel(supabase);
-        await model.delete(id);
+        await model.delete(selectedCouveuse.id);
+        setDeleteConfirmOpen(false);
+        setSelectedCouveuse(null);
         fetchData();
       } catch (error) {
         console.error("Error deleting couveuse:", error);
@@ -113,160 +160,247 @@ export default function CouveusesPage() {
     }
   };
 
+  const resetForm = () => {
+    setFormData({ modele: "", capacite: 0, prix_location_par_jour: 0, fournisseur_id: "", description: "", disponible: true });
+    setSelectedCouveuse(null);
+  };
+
+  const openEdit = (c: Couveuse) => {
+    setSelectedCouveuse(c);
+    setFormData({
+      modele: c.modele,
+      capacite: c.capacite,
+      prix_location_par_jour: Number(c.prix_location_par_jour),
+      fournisseur_id: c.fournisseur_id,
+      description: c.description || "",
+      disponible: c.disponible
+    });
+    setIsEditOpen(true);
+  };
+
+  const filteredCouveuses = couveuses.filter((c) => {
+    const matchesSearch = c.modele.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         c.fournisseur_nom?.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesStatus = statusFilter === "all" || 
+                         (statusFilter === "disponible" && c.disponible) ||
+                         (statusFilter === "occupee" && !c.disponible);
+
+    return matchesSearch && matchesStatus;
+  });
+
+  const totalPages = Math.ceil(filteredCouveuses.length / itemsPerPage);
+  const paginatedCouveuses = filteredCouveuses.slice(
+    (currentPage - 1) * itemsPerPage,
+    currentPage * itemsPerPage
+  );
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h2 className="text-2xl font-display font-bold text-white">Gestion des Couveuses</h2>
-          <p className="text-sm text-muted-foreground">Suivi de la disponibilité et location des équipements d'incubation.</p>
+          <h2 className="text-2xl font-display font-bold text-white">Parc des Couveuses</h2>
+          <p className="text-sm text-muted-foreground">Gestion des équipements d'incubation et de leur disponibilité.</p>
         </div>
 
-        <Dialog open={isOpen} onOpenChange={setIsOpen}>
-          <DialogTrigger asChild>
-            <Button className="bg-orange-accent text-night font-bold hover:bg-orange-accent/90 orange-glow-hover rounded-xl">
-              <Plus className="h-5 w-5 mr-2" />
-              Ajouter une Couveuse
-            </Button>
-          </DialogTrigger>
-          <DialogContent className="bg-night border-white/10 text-white sm:max-w-md">
-            <DialogHeader>
-              <DialogTitle className="text-white font-display text-xl">Nouvelle Couveuse</DialogTitle>
-              <DialogDescription className="text-muted-foreground">
-                Ajoutez un nouvel équipement à votre parc.
-              </DialogDescription>
-            </DialogHeader>
-            <div className="grid gap-6 py-4">
+        <Button 
+          onClick={() => { resetForm(); setIsOpen(true); }}
+          className="bg-orange-accent text-night font-bold hover:bg-orange-accent/90 orange-glow-hover rounded-xl"
+        >
+          <Plus className="h-5 w-5 mr-2" /> Nouvelle Couveuse
+        </Button>
+      </div>
+
+      <div className="flex flex-col sm:flex-row gap-4">
+        <div className="relative group flex-1 max-w-md">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground group-focus-within:text-orange-accent transition-colors" />
+          <Input
+            type="text"
+            placeholder="Rechercher un modèle ou fournisseur..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="bg-white/5 border-white/10 text-white pl-10"
+          />
+        </div>
+        <Select value={statusFilter} onValueChange={setStatusFilter}>
+          <SelectTrigger className="w-[180px] bg-white/5 border-white/10 text-white">
+            <SelectValue placeholder="État" />
+          </SelectTrigger>
+          <SelectContent className="bg-night border-white/10 text-white">
+            <SelectItem value="all">Tous les états</SelectItem>
+            <SelectItem value="disponible">Disponibles</SelectItem>
+            <SelectItem value="occupee">Occupées</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+
+      <div className="glass-card rounded-2xl overflow-hidden border border-white/5">
+        <div className="overflow-x-auto custom-scrollbar">
+          <table className="w-full text-left">
+            <thead className="bg-white/5 border-b border-white/5">
+              <tr className="text-[10px] uppercase tracking-widest text-muted-foreground">
+                <th className="px-6 py-4 font-bold">Équipement</th>
+                <th className="px-6 py-4 font-bold">Fournisseur</th>
+                <th className="px-6 py-4 font-bold">Capacité</th>
+                <th className="px-6 py-4 font-bold">Prix / Jour</th>
+                <th className="px-6 py-4 font-bold">Disponibilité</th>
+                <th className="px-6 py-4 font-bold text-right">Actions</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-white/5">
+              {loading ? (
+                <tr>
+                  <td colSpan={6} className="px-6 py-12 text-center">
+                    <Loader2 className="h-8 w-8 animate-spin text-orange-accent mx-auto" />
+                  </td>
+                </tr>
+              ) : (
+                <AnimatePresence mode="popLayout">
+                  {paginatedCouveuses.map((c) => (
+                    <motion.tr
+                      layout
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      exit={{ opacity: 0 }}
+                      key={c.id}
+                      className="group hover:bg-white/[0.02] transition-colors"
+                    >
+                      <td className="px-6 py-4">
+                        <div className="flex items-center gap-3">
+                          <div className="h-10 w-10 rounded-full bg-orange-accent/10 flex items-center justify-center text-orange-accent">
+                            <Box className="h-5 w-5" />
+                          </div>
+                          <div>
+                            <p className="text-sm font-bold text-white">{c.modele}</p>
+                            <p className="text-[10px] text-muted-foreground uppercase">ID: {c.id.slice(0, 8)}</p>
+                          </div>
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 text-sm text-white">
+                        {c.fournisseur_nom}
+                      </td>
+                      <td className="px-6 py-4 font-mono font-bold text-white">
+                        {c.capacite} œufs
+                      </td>
+                      <td className="px-6 py-4 font-mono font-bold text-white">
+                        {Number(c.prix_location_par_jour).toLocaleString()} FCFA
+                      </td>
+                      <td className="px-6 py-4">
+                        <span className={cn(
+                          "inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider",
+                          c.disponible ? "bg-forest-green/10 text-forest-green border border-forest-green/20" : "bg-destructive/10 text-destructive border border-destructive/20"
+                        )}>
+                          {c.disponible ? <CheckCircle2 className="h-3 w-3" /> : <XCircle className="h-3 w-3" />}
+                          {c.disponible ? "Disponible" : "Occupée"}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 text-right">
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" className="h-8 w-8 p-0 text-muted-foreground hover:text-white">
+                              <MoreVertical className="h-4 w-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end" className="bg-night border-white/10 text-white">
+                            <DropdownMenuItem onClick={() => openEdit(c)} className="hover:bg-white/5 cursor-pointer">
+                              <Pencil className="h-4 w-4 mr-2" /> Modifier
+                            </DropdownMenuItem>
+                            <DropdownMenuItem className="hover:bg-white/5 cursor-pointer">
+                              <History className="h-4 w-4 mr-2" /> Historique
+                            </DropdownMenuItem>
+                            <DropdownMenuItem 
+                              onClick={() => { setSelectedCouveuse(c); setDeleteConfirmOpen(true); }} 
+                              className="text-destructive hover:bg-destructive/10 cursor-pointer"
+                            >
+                              <Trash2 className="h-4 w-4 mr-2" /> Supprimer
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </td>
+                    </motion.tr>
+                  ))}
+                </AnimatePresence>
+              )}
+            </tbody>
+          </table>
+        </div>
+
+        {totalPages > 1 && (
+          <div className="px-6 py-4 border-t border-white/5">
+            <Pagination currentPage={currentPage} totalPages={totalPages} onPageChange={setCurrentPage} />
+          </div>
+        )}
+      </div>
+
+      {/* Modal Add/Edit */}
+      <Dialog open={isOpen || isEditOpen} onOpenChange={(val) => { if(!val) { resetForm(); setIsOpen(false); setIsEditOpen(false); } }}>
+        <DialogContent className="bg-night border-white/10 text-white sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="text-white font-display text-xl">{isEditOpen ? "Modifier Couveuse" : "Nouvelle Couveuse"}</DialogTitle>
+            <DialogDescription className="text-muted-foreground">Renseignez les détails de l'équipement.</DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-6 py-4">
+            <div className="space-y-2">
+              <Label className="text-xs uppercase tracking-widest font-bold text-white/70">Modèle / Nom</Label>
+              <Input value={formData.modele} onChange={(e) => setFormData({...formData, modele: e.target.value})} className="bg-white/5 border-white/10 text-white" placeholder="Ex: Automatique 500" />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label className="text-xs uppercase tracking-widest font-bold text-white/70">Modèle / Nom</Label>
-                <Input 
-                  value={newCouveuse.modele}
-                  onChange={(e) => setNewCouveuse({...newCouveuse, modele: e.target.value})}
-                  className="bg-white/5 border-white/10 text-white" 
-                  placeholder="Ex: Automatique 500" 
-                />
+                <Label className="text-xs uppercase tracking-widest font-bold text-white/70">Capacité (œufs)</Label>
+                <Input type="number" value={formData.capacite} onChange={(e) => setFormData({...formData, capacite: parseInt(e.target.value) || 0})} className="bg-white/5 border-white/10 text-white" />
               </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label className="text-xs uppercase tracking-widest font-bold text-white/70">Capacité (œufs)</Label>
-                  <Input 
-                    type="number"
-                    value={newCouveuse.capacite}
-                    onChange={(e) => setNewCouveuse({...newCouveuse, capacite: parseInt(e.target.value) || 0})}
-                    className="bg-white/5 border-white/10 text-white" 
-                    placeholder="0" 
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label className="text-xs uppercase tracking-widest font-bold text-white/70">Prix / Jour (FCFA)</Label>
-                  <Input 
-                    type="number"
-                    value={newCouveuse.prix_location_par_jour}
-                    onChange={(e) => setNewCouveuse({...newCouveuse, prix_location_par_jour: parseInt(e.target.value) || 0})}
-                    className="bg-white/5 border-white/10 text-white" 
-                    placeholder="0" 
-                  />
-                </div>
+              <div className="space-y-2">
+                <Label className="text-xs uppercase tracking-widest font-bold text-white/70">Prix / Jour (FCFA)</Label>
+                <Input type="number" value={formData.prix_location_par_jour} onChange={(e) => setFormData({...formData, prix_location_par_jour: parseInt(e.target.value) || 0})} className="bg-white/5 border-white/10 text-white" />
               </div>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label className="text-xs uppercase tracking-widest font-bold text-white/70">Fournisseur</Label>
-                <Select 
-                  value={newCouveuse.fournisseur_id} 
-                  onValueChange={(val) => setNewCouveuse({...newCouveuse, fournisseur_id: val})}
-                >
-                  <SelectTrigger className="bg-white/5 border-white/10 text-white">
-                    <SelectValue placeholder="Choisir un fournisseur" />
-                  </SelectTrigger>
-                  <SelectContent className="bg-night border-white/10">
-                    {fournisseurs.map(f => (
-                      <SelectItem key={f.id} value={f.id}>{f.nom}</SelectItem>
-                    ))}
+                <Select value={formData.fournisseur_id} onValueChange={(val) => setFormData({...formData, fournisseur_id: val})}>
+                  <SelectTrigger className="bg-white/5 border-white/10 text-white"><SelectValue placeholder="Choisir..." /></SelectTrigger>
+                  <SelectContent className="bg-night border-white/10 text-white">
+                    {fournisseurs.map(f => <SelectItem key={f.id} value={f.id}>{f.nom}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label className="text-xs uppercase tracking-widest font-bold text-white/70">Disponibilité</Label>
+                <Select value={formData.disponible ? "true" : "false"} onValueChange={(val) => setFormData({...formData, disponible: val === "true"})}>
+                  <SelectTrigger className="bg-white/5 border-white/10 text-white"><SelectValue /></SelectTrigger>
+                  <SelectContent className="bg-night border-white/10 text-white">
+                    <SelectItem value="true">Disponible</SelectItem>
+                    <SelectItem value="false">Occupée</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
             </div>
-            <DialogFooter>
-              <Button variant="outline" onClick={() => setIsOpen(false)} className="border-white/10 text-white hover:bg-white/5">
-                Annuler
-              </Button>
-              <Button onClick={handleAdd} className="bg-orange-accent text-night font-bold hover:bg-orange-accent/90">
-                Enregistrer
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-      </div>
+            <div className="space-y-2">
+              <Label className="text-xs uppercase tracking-widest font-bold text-white/70">Description</Label>
+              <Input value={formData.description} onChange={(e) => setFormData({...formData, description: e.target.value})} className="bg-white/5 border-white/10 text-white" placeholder="État de l'équipement..." />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => { setIsOpen(false); setIsEditOpen(false); }} className="border-white/10 text-white hover:bg-white/5">Annuler</Button>
+            <Button onClick={isEditOpen ? handleEdit : handleAdd} className="bg-orange-accent text-night font-bold hover:bg-orange-accent/90">
+              {isEditOpen ? "Sauvegarder" : "Enregistrer"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
-      {loading ? (
-        <div className="py-24 flex flex-col items-center justify-center space-y-4">
-          <Loader2 className="h-12 w-12 animate-spin text-orange-accent" />
-          <p className="text-muted-foreground animate-pulse">Chargement des couveuses...</p>
-        </div>
-      ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          <AnimatePresence mode="popLayout">
-            {couveuses.map((c) => (
-              <motion.div 
-                layout
-                initial={{ opacity: 0, scale: 0.95 }}
-                animate={{ opacity: 1, scale: 1 }}
-                exit={{ opacity: 0, scale: 0.95 }}
-                key={c.id} 
-                className="glass-card rounded-2xl overflow-hidden group border-white/5 hover:border-orange-accent/30 transition-all"
-              >
-                <div className="p-6">
-                  <div className="flex justify-between items-start mb-6">
-                    <div className="h-14 w-14 rounded-2xl bg-night flex items-center justify-center border border-white/10 group-hover:scale-110 transition-transform">
-                      <Box className="h-7 w-7 text-orange-accent" />
-                    </div>
-                    <div className="flex gap-2">
-                      <div className={cn(
-                        "px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-widest",
-                        c.disponible ? "bg-forest-green/10 text-forest-green border border-forest-green/20" : "bg-destructive/10 text-destructive border border-destructive/20"
-                      )}>
-                        {c.disponible ? "Disponible" : "Occupée"}
-                      </div>
-                      <button 
-                        onClick={() => handleDelete(c.id)}
-                        className="p-1 text-muted-foreground hover:text-destructive transition-colors"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </button>
-                    </div>
-                  </div>
-
-                  <h3 className="text-lg font-display font-bold text-white mb-1">{c.modele}</h3>
-                  <p className="text-xs text-muted-foreground mb-6">Fournisseur : {c.fournisseur_nom}</p>
-
-                  <div className="grid grid-cols-2 gap-4 mb-6">
-                    <div className="bg-white/5 p-3 rounded-xl border border-white/5">
-                      <p className="text-[10px] text-muted-foreground uppercase tracking-widest font-bold mb-1">Capacité</p>
-                      <div className="flex items-center text-white font-mono font-bold">
-                        <Zap className="h-3 w-3 mr-1 text-orange-accent" />
-                        {c.capacite} <span className="text-[10px] ml-1 text-muted-foreground">œufs</span>
-                      </div>
-                    </div>
-                    <div className="bg-white/5 p-3 rounded-xl border border-white/5">
-                      <p className="text-[10px] text-muted-foreground uppercase tracking-widest font-bold mb-1">Prix / jour</p>
-                      <p className="text-white font-mono font-bold">{c.prix_location_par_jour.toLocaleString()} <span className="text-[10px] text-muted-foreground">FCFA</span></p>
-                    </div>
-                  </div>
-
-                  <div className="flex gap-2">
-                    <button className="flex-1 py-2.5 text-xs font-bold bg-white/5 hover:bg-white/10 text-white rounded-xl transition-colors flex items-center justify-center">
-                      <Activity className="h-3 w-3 mr-2" />
-                      État
-                    </button>
-                    <button className="flex-1 py-2.5 text-xs font-bold bg-orange-accent/10 hover:bg-orange-accent text-orange-accent hover:text-night rounded-xl transition-all flex items-center justify-center">
-                      <History className="h-3 w-3 mr-2" />
-                      Historique
-                    </button>
-                  </div>
-                </div>
-              </motion.div>
-            ))}
-          </AnimatePresence>
-        </div>
-      )}
+      {/* Delete Confirm */}
+      <Dialog open={deleteConfirmOpen} onOpenChange={setDeleteConfirmOpen}>
+        <DialogContent className="bg-night border-white/10 text-white sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-white">Confirmer la suppression</DialogTitle>
+            <DialogDescription className="text-muted-foreground">Voulez-vous vraiment retirer cette couveuse du parc ?</DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDeleteConfirmOpen(false)} className="border-white/10 text-white hover:bg-white/5">Annuler</Button>
+            <Button onClick={handleDelete} className="bg-destructive text-white font-bold hover:bg-destructive/90">Supprimer</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

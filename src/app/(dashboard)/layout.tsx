@@ -9,9 +9,9 @@ export default function DashboardLayout({
   return (
     <div className="flex min-h-screen bg-background text-foreground">
       <Sidebar />
-      <div className="flex-1 flex flex-col transition-all duration-300 md:ml-[260px] has-[aside.w-\[80px\]]:md:ml-[80px]">
+      <div className="flex-1 flex flex-col transition-all duration-300 ml-[70px] lg:ml-[260px] has-[aside.lg\:w-\[70px\]]:lg:ml-[70px]">
         <Header />
-        <main className="flex-1 p-4 md:p-8 pt-20 md:pt-8">
+        <main className="flex-1 p-4 md:p-8">
           {children}
         </main>
       </div>

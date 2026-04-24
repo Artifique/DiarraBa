@@ -5,7 +5,6 @@ import { motion } from "framer-motion";
 import { 
   Settings, 
   User, 
-  Building2, 
   Bell, 
   Save,
   Camera,
@@ -83,16 +82,14 @@ export default function SettingsPage() {
         </div>
         <div>
           <h2 className="text-2xl font-display font-bold text-white">Paramètres Système</h2>
-          <p className="text-sm text-muted-foreground">Configurez votre compte, les informations de l'entreprise et les préférences de l'application.</p>
+          <p className="text-sm text-muted-foreground">Configurez votre compte et vos préférences.</p>
         </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
-        {/* Navigation latérale des réglages */}
         <div className="lg:col-span-1 space-y-2">
           {[
             { label: "Mon Profil", icon: User, active: true },
-            { label: "Entreprise", icon: Building2, active: false },
             { label: "Notifications", icon: Bell, active: false },
           ].map((item) => (
             <button 
@@ -110,14 +107,12 @@ export default function SettingsPage() {
           ))}
         </div>
 
-        {/* Contenu des réglages */}
         <div className="lg:col-span-3 space-y-6">
           <motion.div 
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             className="glass-card p-6 rounded-2xl border border-white/5 space-y-8"
           >
-            {/* Section Profil */}
             <div className="space-y-6">
               <div className="flex items-center justify-between border-b border-white/5 pb-4">
                 <h3 className="font-display font-bold text-white text-lg">Informations Personnelles</h3>
@@ -144,60 +139,33 @@ export default function SettingsPage() {
                 <div className="flex-1 grid grid-cols-1 md:grid-cols-2 gap-4 w-full">
                   <div className="space-y-1.5">
                     <label className="text-[10px] text-muted-foreground uppercase font-bold tracking-widest px-1">Nom complet</label>
-                    <input 
-                      type="text" 
-                      value={formData.nom}
-                      onChange={(e) => setFormData({ ...formData, nom: e.target.value })}
-                      className="w-full h-11 bg-white/5 border border-white/10 rounded-xl px-4 text-sm text-white focus:outline-none focus:ring-1 focus:ring-orange-accent/50"
-                    />
+                    <input type="text" value={formData.nom} onChange={(e) => setFormData({ ...formData, nom: e.target.value })} className="w-full h-11 bg-white/5 border border-white/10 rounded-xl px-4 text-sm text-white focus:outline-none focus:ring-1 focus:ring-orange-accent/50" />
                   </div>
                   <div className="space-y-1.5">
                     <label className="text-[10px] text-muted-foreground uppercase font-bold tracking-widest px-1">Email professionnel</label>
-                    <input 
-                      type="email" 
-                      value={formData.email}
-                      onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                      className="w-full h-11 bg-white/5 border border-white/10 rounded-xl px-4 text-sm text-white focus:outline-none focus:ring-1 focus:ring-orange-accent/50"
-                    />
+                    <input type="email" value={formData.email} onChange={(e) => setFormData({ ...formData, email: e.target.value })} className="w-full h-11 bg-white/5 border border-white/10 rounded-xl px-4 text-sm text-white focus:outline-none focus:ring-1 focus:ring-orange-accent/50" />
                   </div>
                   <div className="space-y-1.5">
                     <label className="text-[10px] text-muted-foreground uppercase font-bold tracking-widest px-1">Téléphone</label>
-                    <input 
-                      type="tel" 
-                      value={formData.telephone}
-                      onChange={(e) => setFormData({ ...formData, telephone: e.target.value })}
-                      className="w-full h-11 bg-white/5 border border-white/10 rounded-xl px-4 text-sm text-white focus:outline-none focus:ring-1 focus:ring-orange-accent/50"
-                    />
+                    <input type="tel" value={formData.telephone} onChange={(e) => setFormData({ ...formData, telephone: e.target.value })} className="w-full h-11 bg-white/5 border border-white/10 rounded-xl px-4 text-sm text-white focus:outline-none focus:ring-1 focus:ring-orange-accent/50" />
                   </div>
                   <div className="space-y-1.5">
                     <label className="text-[10px] text-muted-foreground uppercase font-bold tracking-widest px-1">Rôle</label>
-                    <div className="h-11 bg-white/5 border border-white/10 rounded-xl px-4 flex items-center text-sm text-orange-accent font-bold">
-                      Manager Principal
-                    </div>
+                    <div className="h-11 bg-white/5 border border-white/10 rounded-xl px-4 flex items-center text-sm text-orange-accent font-bold">Manager Principal</div>
                   </div>
                 </div>
               </div>
             </div>
 
-            {/* Section Préférences */}
             <div className="space-y-6 pt-4">
               <h3 className="font-display font-bold text-white text-lg border-b border-white/5 pb-4">Préférences d'Affichage</h3>
               <div className="space-y-4">
                 <div className="flex items-center justify-between p-4 bg-white/5 rounded-xl border border-white/5">
                   <div>
                     <p className="text-sm font-bold text-white">Mode Sombre Premium</p>
-                    <p className="text-[11px] text-muted-foreground">Activer l'interface Midnight avec effets de flou.</p>
+                    <p className="text-[11px] text-muted-foreground">Interface Midnight activée.</p>
                   </div>
-                  <div className="h-6 w-11 bg-orange-accent rounded-full relative p-1 cursor-pointer">
-                    <div className="h-4 w-4 bg-night rounded-full absolute right-1" />
-                  </div>
-                </div>
-                <div className="flex items-center justify-between p-4 bg-white/5 rounded-xl border border-white/5">
-                  <div>
-                    <p className="text-sm font-bold text-white">Devise par défaut</p>
-                    <p className="text-[11px] text-muted-foreground">Utiliser le FCFA pour tous les calculs financiers.</p>
-                  </div>
-                  <span className="text-xs font-bold text-orange-accent">FCFA</span>
+                  <div className="h-6 w-11 bg-orange-accent rounded-full relative p-1 cursor-pointer"><div className="h-4 w-4 bg-night rounded-full absolute right-1" /></div>
                 </div>
               </div>
             </div>
