@@ -124,7 +124,7 @@ export interface ReservationCouveuse {
   date_ajout: string;
 }
 
-export type MethodePaiement = 'Especes' | 'Cheque' | 'Virement' | 'Carte' | 'Autre';
+export type MethodePaiement = 'Especes' | 'Cheque' | 'Virement' | 'Carte' | 'Autre' | 'OrangeMoney' | 'Wave';
 export type StatutPaiement = 'Pending' | 'Completed' | 'Failed';
 
 export interface Paiement {
