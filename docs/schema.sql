@@ -275,14 +275,15 @@ SELECT
     c.id,
     c.modele,
     c.capacite,
+    c.quantite,
     c.prix_location_par_jour,
-    c.disponible,
+    (c.quantite - COUNT(rc.id)) as quantite_disponible,
     COUNT(rc.id) as reservations_actives
 FROM couveuses c
 LEFT JOIN reservation_couveuses rc ON c.id = rc.couveuse_id
 LEFT JOIN reservations r ON rc.reservation_id = r.id
 WHERE r.statut_reservation IN ('EnAttente', 'Confirmee') OR r.id IS NULL
-GROUP BY c.id, c.modele, c.capacite, c.prix_location_par_jour, c.disponible;
+GROUP BY c.id, c.modele, c.capacite, c.quantite, c.prix_location_par_jour;
 
 -- Vue : Inventaire des volailles
 CREATE VIEW v_inventaire_volailles AS

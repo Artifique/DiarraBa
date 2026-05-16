@@ -331,6 +331,9 @@ export default function FournisseursPage() {
       {/* Modale Voir Détails */}
       <Dialog open={isViewOpen} onOpenChange={setIsViewOpen}>
         <DialogContent className="bg-night border-white/10 text-white sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="text-white font-display text-xl">Détails Fournisseur</DialogTitle>
+          </DialogHeader>
           {selectedFournisseur && (
             <div className="space-y-8 py-4">
               <div className="flex items-center gap-6">

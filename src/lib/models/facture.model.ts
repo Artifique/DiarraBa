@@ -11,14 +11,23 @@ export class FactureModel {
       .select(`
         *,
         reservations (
-          clients (id, nom)
+          clients (id, nom),
+          paiements (montant)
         )
       `)
       .order("date_facture", { ascending: false });
 
     if (error)
       throw new Error(`Erreur récupération factures détaillées: ${error.message}`);
-    return data || [];
+    
+    return (data || []).map(f => {
+      const paiements = (f.reservations as any)?.paiements || [];
+      const totalPaye = paiements.reduce((acc: number, p: any) => acc + Number(p.montant), 0);
+      return {
+        ...f,
+        montant_paye: f.montant_paye > 0 ? f.montant_paye : totalPaye
+      };
+    });
   }
 
   async findAll(): Promise<Facture[]> {

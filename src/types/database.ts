@@ -30,6 +30,7 @@ export interface Manager {
   email: string;
   telephone: string;
   mot_de_passe: string;
+  role: 'Admin' | 'Gerant';
   date_creation: string;
   date_modification: string;
   actif: boolean;
@@ -80,10 +81,10 @@ export interface Couveuse {
   fournisseur_id: string;
   modele: string;
   capacite: number;
+  quantite: number;
   prix_location_par_jour: number;
   date_ajout: string;
   date_modification: string;
-  disponible: boolean;
   description: string | null;
   actif: boolean;
 }

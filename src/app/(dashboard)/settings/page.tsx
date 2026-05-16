@@ -1,198 +1,176 @@
-// filepath: src/app/(dashboard)/settings/page.tsx
 "use client";
 
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
-import {
-  Settings,
-  User,
-  Save,
-  Camera,
-  Loader2,
-} from "lucide-react";
+import { Settings, User, Save, Loader2, CheckCircle2 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { createClient } from "@/lib/supabase"; // Pour ManagerModel
-import { ManagerModel } from "@/lib/models"; // Pour ManagerModel
-import { Manager } from "@/types/database"; // Pour le type Manager
-
+import { createClient } from "@/lib/supabase";
+import { ManagerModel } from "@/lib/models";
+import { Manager, Setting } from "@/types/database";
+import { settingsService } from "@/lib/services";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
+import { Dialog, DialogContent, DialogTitle, DialogHeader, DialogDescription } from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { PasswordInput } from "@/components/ui/password-input";
 
-// --- Schéma Zod pour les informations du Manager ---
 const formSchema = z.object({
   nom: z.string().min(1, "Le nom est requis."),
   email: z.string().email("Email invalide.").optional().or(z.literal("")),
   telephone: z.string().min(1, "Le numéro de téléphone est requis."),
+  nouveau_mot_de_passe: z.string().min(6, "Le mot de passe doit faire au moins 6 caractères.").optional().or(z.literal("")),
+  confirmer_mot_de_passe: z.string().optional().or(z.literal("")),
+}).refine((data) => data.nouveau_mot_de_passe === data.confirmer_mot_de_passe, {
+  message: "Les mots de passe ne correspondent pas.",
+  path: ["confirmer_mot_de_passe"],
+});
+
+const appSettingsFormSchema = z.object({
+  email_notifications_enabled: z.boolean(),
+  low_stock_threshold: z.number().min(0),
 });
 
 type ManagerFormValues = z.infer<typeof formSchema>;
+type AppSettingsFormValues = z.infer<typeof appSettingsFormSchema>;
 
 export default function SettingsPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [manager, setManager] = useState<Manager | null>(null); // Pour stocker les données du manager
+  const [manager, setManager] = useState<Manager | null>(null);
+  const [activeTab, setActiveTab] = useState<"profile" | "app_settings">("profile");
+  const [showSuccess, setShowSuccess] = useState(false);
+
+  const [loadingAppSettings, setLoadingAppSettings] = useState(false);
+  const [savingAppSettings, setSavingAppSettings] = useState(false);
+  const [appSettings, setAppSettings] = useState<Setting[]>([]);
 
   const form = useForm<ManagerFormValues>({
     resolver: zodResolver(formSchema),
-    defaultValues: {
-      nom: "",
-      email: "",
-      telephone: "",
-    },
+    defaultValues: { nom: "", email: "", telephone: "", nouveau_mot_de_passe: "", confirmer_mot_de_passe: "" },
+  });
+
+  const appSettingsForm = useForm<AppSettingsFormValues>({
+    resolver: zodResolver(appSettingsFormSchema),
+    defaultValues: { email_notifications_enabled: false, low_stock_threshold: 5 },
   });
 
   const { handleSubmit, register, reset, formState: { errors } } = form;
+  const { handleSubmit: handleAppSettingsSubmit, register: registerAppSettings, reset: resetAppSettings, formState: { errors: appSettingsErrors } } = appSettingsForm;
 
   useEffect(() => {
-    const fetchManager = async () => {
+    const fetchInitialData = async () => {
       try {
         setLoading(true);
-        const supabase = createClient();
-        const model = new ManagerModel(supabase);
-        const data = await model.findFirst(); // Assumons qu'il n'y a qu'un seul manager ou que nous récupérons celui connecté
-        if (data) {
-          setManager(data);
+        const storedUser = localStorage.getItem("user");
+        if (storedUser) {
+          const managerData = JSON.parse(storedUser);
+          setManager(managerData);
           reset({
-            nom: data.nom,
-            email: data.email || "",
-            telephone: data.telephone,
+            nom: managerData.nom,
+            email: managerData.email || "",
+            telephone: managerData.telephone,
+            nouveau_mot_de_passe: "",
+            confirmer_mot_de_passe: "",
           });
         }
+
+        // Fetch app settings from Supabase
+        const fetchedSettings = await settingsService.getAllSettings();
+        setAppSettings(fetchedSettings);
+
+        const initialAppSettings: AppSettingsFormValues = {
+          email_notifications_enabled: fetchedSettings.find(s => s.key === "email_notifications_enabled")?.value === "true",
+          low_stock_threshold: Number(fetchedSettings.find(s => s.key === "low_stock_threshold")?.value) || 5,
+        };
+        resetAppSettings(initialAppSettings);
+
       } catch (error) {
-        console.error("Error fetching manager:", error);
+        console.error(error);
       } finally {
         setLoading(false);
       }
-    };
-
-    fetchManager();
+    };    fetchInitialData();
   }, [reset]);
 
   const onSubmit = async (values: ManagerFormValues) => {
-    if (!manager) return; // Ne pas sauvegarder si pas de manager chargé
+    if (!manager) return;
     setSaving(true);
     try {
       const supabase = createClient();
       const model = new ManagerModel(supabase);
-      const updatedManager = await model.update(manager.id, values);
-      setManager(updatedManager); // Met à jour l'état local du manager
-      alert("Profil mis à jour avec succès !");
-    } catch (error) {
-      console.error("Error updating manager profile:", error);
-      alert("Erreur lors de la mise à jour du profil.");
-    } finally {
-      setSaving(false);
-    }
+      const updateData: any = { nom: values.nom, email: values.email, telephone: values.telephone };
+      if (values.nouveau_mot_de_passe) updateData.mot_de_passe = values.nouveau_mot_de_passe;
+      const updatedManager = await model.update(manager.id, updateData);
+      setManager(updatedManager);
+      localStorage.setItem("user", JSON.stringify(updatedManager));
+      setShowSuccess(true);
+      reset({ ...values, nouveau_mot_de_passe: "", confirmer_mot_de_passe: "" });
+    } catch (e) { console.error(e); } finally { setSaving(false); }
   };
 
-  if (loading) {
-    return (
-      <div className="h-[80vh] flex items-center justify-center">
-        <Loader2 className="animate-spin h-12 w-12 border-b-2 border-orange-accent text-orange-accent" />
-      </div>
-    );
-  }
+  const onAppSettingsSubmit = async (values: AppSettingsFormValues) => {
+    setSavingAppSettings(true);
+    try {
+      const managerId = manager?.id || "";
+      const saveSetting = async (key: string, value: string, type: string, desc: string) => {
+        const existing = appSettings.find(s => s.key === key);
+        if (existing) await settingsService.updateSetting(existing.id, { value }, managerId);
+        else await settingsService.createSetting({ key, value, type: type as any, description: desc }, managerId);
+      };
+      await Promise.all([
+        saveSetting("email_notifications_enabled", String(values.email_notifications_enabled), "boolean", "Notifications email"),
+        saveSetting("low_stock_threshold", String(values.low_stock_threshold), "number", "Seuil stock faible"),
+      ]);
+      setShowSuccess(true);
+    } catch (e) { console.error(e); } finally { setSavingAppSettings(false); }
+  };
 
   return (
     <div className="max-w-5xl mx-auto space-y-8 pb-12">
       <div className="flex items-center gap-3">
-        <div className="h-10 w-10 rounded-xl bg-orange-accent/10 flex items-center justify-center text-orange-accent">
-          <User className="h-6 w-6" />
-        </div>
+        <div className="h-10 w-10 rounded-xl bg-orange-accent/10 flex items-center justify-center text-orange-accent"><Settings className="h-6 w-6" /></div>
         <div>
-          <h2 className="text-2xl font-display font-bold text-white">Mon Profil</h2>
-          <p className="text-sm text-muted-foreground">Gérez vos informations personnelles.</p>
+          <h2 className="text-2xl font-display font-bold text-white">Paramètres</h2>
+          <p className="text-sm text-muted-foreground">Profil et réglages système.</p>
         </div>
       </div>
-
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
-        {/* Suppression de la navigation latérale - un seul onglet reste */}
         <div className="lg:col-span-1 space-y-2">
-          <button
-            className={cn(
-              "w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold transition-all",
-              "bg-orange-accent text-night shadow-lg orange-glow" // Toujours actif
-            )}
-          >
-            <User className="h-4 w-4" />
-            Mon Profil
-          </button>
+            <button onClick={() => setActiveTab("profile")} className={cn("w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold", activeTab === "profile" ? "bg-orange-accent text-night shadow-lg" : "text-muted-foreground hover:bg-white/5")}><User className="h-4 w-4" /> Mon Profil</button>
+            <button onClick={() => setActiveTab("app_settings")} className={cn("w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold", activeTab === "app_settings" ? "bg-orange-accent text-night shadow-lg" : "text-muted-foreground hover:bg-white/5")}><Settings className="h-4 w-4" /> Application</button>
         </div>
-
         <div className="lg:col-span-3 space-y-6">
-          <motion.div
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="glass-card p-6 rounded-2xl border border-white/5 space-y-8"
-          >
-            <form onSubmit={handleSubmit(onSubmit)}>
-              <div className="space-y-6">
+          {activeTab === "profile" && (
+            <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="glass-card p-6 rounded-2xl border border-white/5">
+              <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
                 <div className="flex items-center justify-between border-b border-white/5 pb-4">
                   <h3 className="font-display font-bold text-white text-lg">Informations Personnelles</h3>
-                  <button
-                    type="submit"
-                    disabled={saving}
-                    className="flex items-center gap-2 px-4 py-2 bg-orange-accent/10 hover:bg-orange-accent text-orange-accent hover:text-night text-xs font-bold rounded-lg transition-all disabled:opacity-50"
-                  >
-                    {saving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />}
-                    {saving ? "Enregistrement..." : "Enregistrer"}
-                  </button>
+                  <Button type="submit" disabled={saving} className="bg-orange-accent text-night font-bold"><Save className="h-4 w-4 mr-2" /> Enregistrer</Button>
                 </div>
-
-                <div className="flex flex-col md:flex-row gap-8 items-center md:items-start">
-                  <div className="relative group">
-                    <div className="h-24 w-24 rounded-full bg-primary flex items-center justify-center text-2xl font-bold text-white border-2 border-orange-accent overflow-hidden">
-                      {manager?.nom.charAt(0)}
-                    </div>
-                    <button className="absolute bottom-0 right-0 p-1.5 bg-orange-accent text-night rounded-full border-2 border-night hover:scale-110 transition-transform">
-                      <Camera className="h-3.5 w-3.5" />
-                    </button>
-                  </div>
-
-                  <div className="flex-1 grid grid-cols-1 md:grid-cols-2 gap-4 w-full">
-                    <div className="space-y-1.5">
-                      <label htmlFor="nom" className="text-[10px] text-muted-foreground uppercase font-bold tracking-widest px-1">Nom complet</label>
-                      <input
-                        id="nom"
-                        type="text"
-                        {...register("nom")}
-                        className="w-full h-11 bg-white/5 border border-white/10 rounded-xl px-4 text-sm text-white focus:outline-none focus:ring-1 focus:ring-orange-accent/50"
-                      />
-                      {errors.nom && <p className="text-red-500 text-xs mt-1">{errors.nom.message}</p>}
-                    </div>
-                    <div className="space-y-1.5">
-                      <label htmlFor="email" className="text-[10px] text-muted-foreground uppercase font-bold tracking-widest px-1">Email professionnel</label>
-                      <input
-                        id="email"
-                        type="email"
-                        {...register("email")}
-                        className="w-full h-11 bg-white/5 border border-white/10 rounded-xl px-4 text-sm text-white focus:outline-none focus:ring-1 focus:ring-orange-accent/50"
-                      />
-                      {errors.email && <p className="text-red-500 text-xs mt-1">{errors.email.message}</p>}
-                    </div>
-                    <div className="space-y-1.5">
-                      <label htmlFor="telephone" className="text-[10px] text-muted-foreground uppercase font-bold tracking-widest px-1">Téléphone</label>
-                      <input
-                        id="telephone"
-                        type="tel"
-                        {...register("telephone")}
-                        className="w-full h-11 bg-white/5 border border-white/10 rounded-xl px-4 text-sm text-white focus:outline-none focus:ring-1 focus:ring-orange-accent/50"
-                      />
-                      {errors.telephone && <p className="text-red-500 text-xs mt-1">{errors.telephone.message}</p>}
-                    </div>
-                    {/* Le rôle est affiché mais non modifiable ici */}
-                    <div className="space-y-1.5">
-                      <label className="text-[10px] text-muted-foreground uppercase font-bold tracking-widest px-1">Rôle</label>
-                      <div className="h-11 bg-white/5 border border-white/10 rounded-xl px-4 flex items-center text-sm text-orange-accent font-bold">Manager Principal</div>
-                    </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div><Label className="text-[10px] text-muted-foreground uppercase font-bold">Nom complet</Label><Input {...register("nom")} className="bg-white/5" /></div>
+                  <div><Label className="text-[10px] text-muted-foreground uppercase font-bold">Email</Label><Input {...register("email")} className="bg-white/5" /></div>
+                  <div><Label className="text-[10px] text-muted-foreground uppercase font-bold">Téléphone</Label><Input {...register("telephone")} className="bg-white/5" /></div>
+                  <div><Label className="text-[10px] text-muted-foreground uppercase font-bold">Rôle</Label><div className="h-10 bg-white/5 rounded-md px-4 flex items-center text-sm text-orange-accent font-bold">{manager?.role || "Gérant"}</div></div>
+                </div>
+                <div className="pt-6 border-t border-white/5 space-y-4">
+                  <h3 className="font-display font-bold text-white text-lg">Changer mot de passe</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div><Label className="text-[10px] text-muted-foreground uppercase font-bold">Nouveau</Label><PasswordInput {...register("nouveau_mot_de_passe")} /></div>
+                    <div><Label className="text-[10px] text-muted-foreground uppercase font-bold">Confirmer</Label><PasswordInput {...register("confirmer_mot_de_passe")} /></div>
                   </div>
                 </div>
-              </div>
-            </form>
-          </motion.div>
+              </form>
+            </motion.div>
+          )}
         </div>
       </div>
+      <Dialog open={showSuccess} onOpenChange={setShowSuccess}>
+        <DialogContent className="bg-night text-white text-center"><CheckCircle2 className="h-12 w-12 text-forest-green mx-auto mb-4" /><DialogTitle>Succès !</DialogTitle><DialogDescription>Modifications enregistrées.</DialogDescription></DialogContent>
+      </Dialog>
     </div>
   );
 }

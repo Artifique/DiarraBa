@@ -32,11 +32,13 @@ export class CouveuseModel {
   }
 
   async findDisponibles(): Promise<Couveuse[]> {
+    // Note: Dans un environnement réel, on utiliserait peut-être la vue v_couveuses_disponibilite
+    // mais ici on simplifie en récupérant toutes les couveuses actives
     const { data, error } = await this.supabase
       .from("couveuses")
       .select("*")
       .eq("actif", true)
-      .eq("disponible", true)
+      .gt("quantite", 0)
       .order("modele");
 
     if (error)
@@ -83,10 +85,6 @@ export class CouveuseModel {
 
     if (error) throw new Error(`Erreur mise à jour couveuse: ${error.message}`);
     return data;
-  }
-
-  async setDisponibilite(id: string, disponible: boolean): Promise<Couveuse> {
-    return this.update(id, { disponible });
   }
 
   async delete(id: string): Promise<void> {

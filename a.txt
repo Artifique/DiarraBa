@@ -1,0 +1,9 @@
+
+﻿
+requests.js:1 
+ POST https://nbyflhgapmkmtohpdiim.supabase.co/auth/v1/signup 500 (Internal Server Error)
+(anonymous)	@	requests.js:1
+(anonymous)	@	200.js:1
+await in signUp		
+(anonymous)	@	page.tsx:38
+﻿

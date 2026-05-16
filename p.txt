@@ -1,0 +1,123 @@
+-- 1. Modification de la table couveuses
+ALTER TABLE couveuses DROP COLUMN IF EXISTS disponible;
+ALTER TABLE couveuses ADD COLUMN IF NOT EXISTS quantite INTEGER NOT NULL DEFAULT 1;
+
+-- 2. Création de la table settings si elle n'existe pas
+CREATE TABLE IF NOT EXISTS settings (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    key VARCHAR(255) UNIQUE NOT NULL,
+    value TEXT NOT NULL,
+    type VARCHAR(50) NOT NULL,
+    description TEXT,
+    date_creation TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    date_modification TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- 3. Insertion du paramètre par défaut pour le seuil de stock
+INSERT INTO settings (key, value, type, description)
+VALUES ('low_stock_threshold', '5', 'number', 'Seuil de stock faible pour alertes')
+ON CONFLICT (key) DO NOTHING;
+
+-- 4. Mise à jour de la vue v_couveuses_disponibilite
+DROP VIEW IF EXISTS v_couveuses_disponibilite;
+CREATE VIEW v_couveuses_disponibilite AS
+SELECT 
+    c.id,
+    c.modele,
+    c.capacite,
+    c.quantite,
+    c.prix_location_par_jour,
+    (c.quantite - COALESCE((SELECT COUNT(*) FROM reservation_couveuses rc 
+                            JOIN reservations r ON rc.reservation_id = r.id 
+                            WHERE rc.couveuse_id = c.id 
+                            AND r.statut_reservation IN ('EnAttente', 'Confirmee')), 0)) as quantite_disponible
+FROM couveuses c
+WHERE c.actif = TRUE;
+
+-- 5. Triggers de gestion des factures
+CREATE OR REPLACE FUNCTION auto_create_facture()
+RETURNS TRIGGER AS $$
+DECLARE
+    new_numero VARCHAR(50);
+BEGIN
+    new_numero := 'FA-' || TO_CHAR(CURRENT_DATE, 'YYYY') || '-' || 
+                  LPAD((SELECT COALESCE(COUNT(*), 0) + 1 FROM factures)::TEXT, 4, '0');
+    INSERT INTO factures (reservation_id, numero, date_facture, montant_total, montant_paye, montant_restant, statut)
+    VALUES (NEW.id, new_numero, CURRENT_DATE, NEW.prix_total, 0, NEW.prix_total, 'Brouillon');
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS trigger_auto_create_facture ON reservations;
+CREATE TRIGGER trigger_auto_create_facture AFTER INSERT ON reservations FOR EACH ROW EXECUTE FUNCTION auto_create_facture();
+
+CREATE OR REPLACE FUNCTION update_facture_montant_restant()
+RETURNS TRIGGER AS $$
+BEGIN
+    UPDATE factures
+    SET 
+        montant_paye = (
+            SELECT COALESCE(SUM(montant), 0)
+            FROM paiements
+            WHERE reservation_id = COALESCE(NEW.reservation_id, OLD.reservation_id)
+        ),
+        montant_restant = montant_total - (
+            SELECT COALESCE(SUM(montant), 0)
+            FROM paiements
+            WHERE reservation_id = COALESCE(NEW.reservation_id, OLD.reservation_id)
+        ),
+        statut = CASE 
+            WHEN montant_total - (
+                SELECT COALESCE(SUM(montant), 0)
+                FROM paiements
+                WHERE reservation_id = COALESCE(NEW.reservation_id, OLD.reservation_id)
+            ) <= 0 THEN 'Payee'
+            ELSE 'Partielle'
+        END
+    WHERE reservation_id = COALESCE(NEW.reservation_id, OLD.reservation_id);
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS trigger_update_facture_paiement ON paiements;
+CREATE TRIGGER trigger_update_facture_paiement AFTER INSERT OR UPDATE ON paiements FOR EACH ROW EXECUTE FUNCTION update_facture_montant_restant();
+
+CREATE OR REPLACE FUNCTION update_facture_montant_total()
+RETURNS TRIGGER AS $$
+BEGIN
+    UPDATE factures
+    SET montant_total = NEW.prix_total,
+        montant_restant = NEW.prix_total - montant_paye
+    WHERE reservation_id = NEW.id;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS trigger_update_facture_total ON reservations;
+CREATE TRIGGER trigger_update_facture_total AFTER UPDATE OF prix_total ON reservations FOR EACH ROW EXECUTE FUNCTION update_facture_montant_total();
+
+-- 1. TABLE MANAGER (Gérant)
+ALTER TABLE managers ALTER COLUMN mot_de_passe DROP NOT NULL;
+ALTER TABLE managers ALTER COLUMN mot_de_passe SET DEFAULT 'auth-managed';
+
+CREATE OR REPLACE FUNCTION public.handle_new_user()
+RETURNS TRIGGER AS $$
+BEGIN
+  INSERT INTO public.managers (id, email, nom, telephone, role)
+  VALUES (
+    NEW.id, 
+    NEW.email, 
+    COALESCE(NEW.raw_user_meta_data->>'nom', 'Nouvel Utilisateur'),
+    COALESCE(NEW.raw_user_meta_data->>'telephone', '0000000000'),
+    COALESCE(NEW.raw_user_meta_data->>'role', 'Gerant')
+  );
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
+CREATE TRIGGER on_auth_user_created
+AFTER INSERT ON auth.users
+FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();
+
+

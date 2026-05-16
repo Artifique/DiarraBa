@@ -66,10 +66,10 @@ export default function CouveusesPage() {
   const [formData, setFormData] = useState({ 
     modele: "", 
     capacite: 0, 
+    quantite: 1,
     prix_location_par_jour: 0, 
     fournisseur_id: "",
     description: "",
-    disponible: true
   });
 
   const fetchData = useCallback(async () => {
@@ -110,10 +110,10 @@ export default function CouveusesPage() {
       await model.create({
         modele: formData.modele,
         capacite: formData.capacite,
+        quantite: formData.quantite,
         prix_location_par_jour: formData.prix_location_par_jour,
         fournisseur_id: formData.fournisseur_id,
         description: formData.description,
-        disponible: formData.disponible,
         actif: true
       });
       setIsOpen(false);
@@ -132,10 +132,10 @@ export default function CouveusesPage() {
       await model.update(selectedCouveuse.id, {
         modele: formData.modele,
         capacite: formData.capacite,
+        quantite: formData.quantite,
         prix_location_par_jour: formData.prix_location_par_jour,
         fournisseur_id: formData.fournisseur_id,
         description: formData.description,
-        disponible: formData.disponible
       });
       setIsEditOpen(false);
       resetForm();
@@ -161,7 +161,7 @@ export default function CouveusesPage() {
   };
 
   const resetForm = () => {
-    setFormData({ modele: "", capacite: 0, prix_location_par_jour: 0, fournisseur_id: "", description: "", disponible: true });
+    setFormData({ modele: "", capacite: 0, quantite: 1, prix_location_par_jour: 0, fournisseur_id: "", description: "" });
     setSelectedCouveuse(null);
   };
 
@@ -170,10 +170,10 @@ export default function CouveusesPage() {
     setFormData({
       modele: c.modele,
       capacite: c.capacite,
+      quantite: c.quantite,
       prix_location_par_jour: Number(c.prix_location_par_jour),
       fournisseur_id: c.fournisseur_id,
       description: c.description || "",
-      disponible: c.disponible
     });
     setIsEditOpen(true);
   };
@@ -182,8 +182,8 @@ export default function CouveusesPage() {
     const matchesSearch = c.modele.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          c.fournisseur_nom?.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesStatus = statusFilter === "all" || 
-                         (statusFilter === "disponible" && c.disponible) ||
-                         (statusFilter === "occupee" && !c.disponible);
+                         (statusFilter === "disponible" && c.quantite > 0) ||
+                         (statusFilter === "epuise" && c.quantite <= 0);
 
     return matchesSearch && matchesStatus;
   });
@@ -199,7 +199,7 @@ export default function CouveusesPage() {
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h2 className="text-2xl font-display font-bold text-white">Parc des Couveuses</h2>
-          <p className="text-sm text-muted-foreground">Gestion des équipements d'incubation et de leur disponibilité.</p>
+          <p className="text-sm text-muted-foreground">Gestion des équipements d'incubation et de leur stock.</p>
         </div>
 
         <Button 
@@ -227,8 +227,8 @@ export default function CouveusesPage() {
           </SelectTrigger>
           <SelectContent className="bg-night border-white/10 text-white">
             <SelectItem value="all">Tous les états</SelectItem>
-            <SelectItem value="disponible">Disponibles</SelectItem>
-            <SelectItem value="occupee">Occupées</SelectItem>
+            <SelectItem value="disponible">En Stock</SelectItem>
+            <SelectItem value="epuise">Épuisé</SelectItem>
           </SelectContent>
         </Select>
       </div>
@@ -242,7 +242,7 @@ export default function CouveusesPage() {
                 <th className="px-6 py-4 font-bold">Fournisseur</th>
                 <th className="px-6 py-4 font-bold">Capacité</th>
                 <th className="px-6 py-4 font-bold">Prix / Jour</th>
-                <th className="px-6 py-4 font-bold">Disponibilité</th>
+                <th className="px-6 py-4 font-bold">Stock</th>
                 <th className="px-6 py-4 font-bold text-right">Actions</th>
               </tr>
             </thead>
@@ -287,10 +287,12 @@ export default function CouveusesPage() {
                       <td className="px-6 py-4">
                         <span className={cn(
                           "inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider",
-                          c.disponible ? "bg-forest-green/10 text-forest-green border border-forest-green/20" : "bg-destructive/10 text-destructive border border-destructive/20"
+                          c.quantite > 5 ? "bg-forest-green/10 text-forest-green border border-forest-green/20" : 
+                          c.quantite > 0 ? "bg-orange-accent/10 text-orange-accent border border-orange-accent/20" :
+                          "bg-destructive/10 text-destructive border border-destructive/20"
                         )}>
-                          {c.disponible ? <CheckCircle2 className="h-3 w-3" /> : <XCircle className="h-3 w-3" />}
-                          {c.disponible ? "Disponible" : "Occupée"}
+                          {c.quantite > 0 ? <CheckCircle2 className="h-3 w-3" /> : <XCircle className="h-3 w-3" />}
+                          {c.quantite} unité(s)
                         </span>
                       </td>
                       <td className="px-6 py-4 text-right">
@@ -349,27 +351,21 @@ export default function CouveusesPage() {
                 <Input type="number" value={formData.capacite} onChange={(e) => setFormData({...formData, capacite: parseInt(e.target.value) || 0})} className="bg-white/5 border-white/10 text-white" />
               </div>
               <div className="space-y-2">
-                <Label className="text-xs uppercase tracking-widest font-bold text-white/70">Prix / Jour (FCFA)</Label>
-                <Input type="number" value={formData.prix_location_par_jour} onChange={(e) => setFormData({...formData, prix_location_par_jour: parseInt(e.target.value) || 0})} className="bg-white/5 border-white/10 text-white" />
+                <Label className="text-xs uppercase tracking-widest font-bold text-white/70">Quantité en Stock</Label>
+                <Input type="number" value={formData.quantite} onChange={(e) => setFormData({...formData, quantite: parseInt(e.target.value) || 0})} className="bg-white/5 border-white/10 text-white" />
               </div>
             </div>
             <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label className="text-xs uppercase tracking-widest font-bold text-white/70">Prix / Jour (FCFA)</Label>
+                <Input type="number" value={formData.prix_location_par_jour} onChange={(e) => setFormData({...formData, prix_location_par_jour: parseInt(e.target.value) || 0})} className="bg-white/5 border-white/10 text-white" />
+              </div>
               <div className="space-y-2">
                 <Label className="text-xs uppercase tracking-widest font-bold text-white/70">Fournisseur</Label>
                 <Select value={formData.fournisseur_id} onValueChange={(val) => setFormData({...formData, fournisseur_id: val})}>
                   <SelectTrigger className="bg-white/5 border-white/10 text-white"><SelectValue placeholder="Choisir..." /></SelectTrigger>
                   <SelectContent className="bg-night border-white/10 text-white">
                     {fournisseurs.map(f => <SelectItem key={f.id} value={f.id}>{f.nom}</SelectItem>)}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2">
-                <Label className="text-xs uppercase tracking-widest font-bold text-white/70">Disponibilité</Label>
-                <Select value={formData.disponible ? "true" : "false"} onValueChange={(val) => setFormData({...formData, disponible: val === "true"})}>
-                  <SelectTrigger className="bg-white/5 border-white/10 text-white"><SelectValue /></SelectTrigger>
-                  <SelectContent className="bg-night border-white/10 text-white">
-                    <SelectItem value="true">Disponible</SelectItem>
-                    <SelectItem value="false">Occupée</SelectItem>
                   </SelectContent>
                 </Select>
               </div>

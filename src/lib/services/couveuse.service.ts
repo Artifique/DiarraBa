@@ -73,14 +73,6 @@ export const couveuseService = {
     return couveuse;
   },
 
-  async setDisponibilite(
-    id: string,
-    disponible: boolean,
-    managerId: string,
-  ): Promise<Couveuse> {
-    return this.update(id, { disponible }, managerId);
-  },
-
   async delete(id: string, managerId: string): Promise<void> {
     const oldCouveuse = await couveuseModel.findById(id);
     if (!oldCouveuse) throw new Error("Couveuse non trouvée");

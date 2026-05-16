@@ -22,12 +22,12 @@ export class DashboardService {
       .in("statut_reservation", ["EnAttente", "Confirmee"]);
 
     const { data: couveusesData } = await this.supabase
-      .from("couveuses")
-      .select("disponible");
+      .from("v_couveuses_disponibilite")
+      .select("quantite, quantite_disponible");
     
-    const activeCouveuses = couveusesData?.filter(c => !c.disponible).length || 0;
-    const totalCouveuses = couveusesData?.length || 1;
-    const occupancyRate = Math.round((activeCouveuses / totalCouveuses) * 100);
+    const totalCouveuses = couveusesData?.reduce((acc, curr) => acc + curr.quantite, 0) || 1;
+    const dispoCouveuses = couveusesData?.reduce((acc, curr) => acc + curr.quantite_disponible, 0) || 0;
+    const occupancyRate = Math.round(((totalCouveuses - dispoCouveuses) / totalCouveuses) * 100);
 
     return {
       totalCA,
