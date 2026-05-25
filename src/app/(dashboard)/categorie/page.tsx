@@ -72,6 +72,11 @@ export default function CategoriePage() {
   useEffect(() => { fetchCategories(currentPage); }, [fetchCategories, currentPage]);
 
   const onSubmit = async (values: CategorieFormValues) => {
+    if (!currentUserId) {
+        setErrorMessage("Utilisateur non authentifié.");
+        setShowError(true);
+        return;
+    }
     try {
       if (editingCategorie) {
         await updateCategorieAction(editingCategorie.id, values, currentUserId);
@@ -89,6 +94,11 @@ export default function CategoriePage() {
   };
 
   const handleDelete = async (id: string) => {
+    if (!currentUserId) {
+        setErrorMessage("Utilisateur non authentifié.");
+        setShowError(true);
+        return;
+    }
     if (!confirm("Supprimer cette catégorie ?")) return;
     try {
       await deleteCategorieAction(id, currentUserId);

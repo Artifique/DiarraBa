@@ -15,18 +15,19 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { cn } from "@/lib/utils";
 import { Pagination } from "@/components/ui/pagination"; 
-
 const formSchema = z.object({
   nom: z.string().min(1, "Le nom est requis."),
-  prix_achat: z.preprocess((val) => (val === "" || val === null || val === undefined ? null : Number(val)), z.number().nullable().optional()),
-  quantite: z.preprocess((val) => (val === "" || val === null || val === undefined ? 0 : Number(val)), z.number().min(0)),
-  prix_unitaire: z.preprocess((val) => (val === "" || val === null || val === undefined ? 0 : Number(val)), z.number().min(0)),
-  categorieId: z.string().min(1, "La catégorie est requise."),
+  prix_achat: z.number().nullable().optional(),
+  quantite: z.number().min(0, "Min 0."),
+  prix_unitaire: z.number().min(0, "Min 0."),
+  categorieId: z.string().min(1, "Catégorie requise."),
+  fournisseurId: z.string().optional().nullable(),
   newFournisseurNom: z.string().optional().nullable(),
-  newFournisseurTel: z.string().min(1, "Le téléphone est obligatoire."),
+  newFournisseurTel: z.string().min(1, "Téléphone obligatoire."),
 });
 
 type ProduitFormValues = z.infer<typeof formSchema>;
+
 
 export default function ProduitPage() {
   const [produits, setProduits] = useState<PrismaProduit[]>([]);
@@ -110,37 +111,48 @@ export default function ProduitPage() {
   useEffect(() => { fetchData(currentPage); }, [fetchData, currentPage]);
 
   const onPageChange = (page: number) => { setCurrentPage(page); };
-
-  const onSubmit = async (values: ProduitFormValues) => {
-    try {
-      const payload: any = {
-        nom: values.nom,
-        prix_achat: values.prix_achat,
-        quantite: values.quantite,
-        prix_unitaire: values.prix_unitaire,
-        categorie: { connect: { id: values.categorieId } },
-        fournisseurInfo: {
-          nom: values.newFournisseurNom || null,
-          telephone: values.newFournisseurTel
-        }
-      };
-
-      if (editingProduit) {
-        await updateProduitAction(editingProduit.id, payload, currentUserId);
-      } else {
-        await createProduitAction(payload, currentUserId);
-      }
-      setShowSuccess(true);
-      setIsModalOpen(false);
-      reset();
-      fetchData(currentPage);
-    } catch (e: any) {
-      setErrorMessage(e.message || "Erreur d'enregistrement.");
+const onSubmit = async (values: ProduitFormValues) => {
+  if (!currentUserId) {
+      setErrorMessage("Utilisateur non authentifié.");
       setShowError(true);
+      return;
+  }
+  try {
+    const payload: any = {
+      nom: values.nom,
+      prix_achat: values.prix_achat,
+      quantite: values.quantite,
+      prix_unitaire: values.prix_unitaire,
+      categorie: { connect: { id: values.categorieId } },
+      fournisseurId: values.fournisseurId === "null" ? null : values.fournisseurId,
+      fournisseurInfo: {
+        nom: values.newFournisseurNom || null,
+        telephone: values.newFournisseurTel
+      }
+    };
+
+    if (editingProduit) {
+      await updateProduitAction(editingProduit.id, payload, currentUserId);
+    } else {
+      await createProduitAction(payload, currentUserId);
     }
-  };
+    setShowSuccess(true);
+    setIsModalOpen(false);
+    reset();
+    fetchData(currentPage);
+  } catch (e: any) {
+    setErrorMessage(e.message || "Erreur d'enregistrement.");
+    setShowError(true);
+  }
+};
+
 
   const handleDelete = async (id: string) => {
+    if (!currentUserId) {
+        setErrorMessage("Utilisateur non authentifié.");
+        setShowError(true);
+        return;
+    }
     if (!confirm("Supprimer ce produit ?")) return;
     try {
       await deleteProduitAction(id, currentUserId);
@@ -153,6 +165,11 @@ export default function ProduitPage() {
   };
 
   const handleStockAdjustment = async () => {
+    if (!currentUserId) {
+        setErrorMessage("Utilisateur non authentifié.");
+        setShowError(true);
+        return;
+    }
     if (!stockAdjustment.produitId || stockAdjustment.quantite <= 0) return;
     const produitToUpdate = produits.find(p => p.id === stockAdjustment.produitId);
     if (!produitToUpdate) return;

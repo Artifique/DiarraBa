@@ -18,10 +18,10 @@ import { Pagination } from "@/components/ui/pagination";
 
 const formSchema = z.object({
   telephone: z.string().min(1, "Le numéro de téléphone est requis."),
-  quantite: z.preprocess((val) => (val === "" || val === null ? 0 : Number(val)), z.number().min(1, "Minimum 1.")),
+  quantite: z.number().min(1, "Minimum 1."),
   date_debut: z.string().min(1, "Date de début requise."),
   date_fin_prevue: z.string().min(1, "Échéance requise."),
-  prix: z.preprocess((val) => (val === "" || val === null ? 0 : Number(val)), z.number().min(0)),
+  prix: z.number().min(0),
   paye: z.boolean(),
 });
 
@@ -48,7 +48,7 @@ export default function EclosionPage() {
     resolver: zodResolver(formSchema),
     defaultValues: {
       telephone: "",
-      quantite: 0,
+      quantite: 1,
       date_debut: new Date().toISOString().split('T')[0],
       date_fin_prevue: new Date().toISOString().split('T')[0],
       prix: 0,
@@ -96,6 +96,11 @@ export default function EclosionPage() {
   });
 
   const onSubmit = async (values: EclosionFormValues) => {
+    if (!currentUserId) {
+        setErrorMessage("Utilisateur non authentifié.");
+        setShowError(true);
+        return;
+    }
     try {
       const formattedValues = {
         ...values,
@@ -119,6 +124,11 @@ export default function EclosionPage() {
   };
 
   const handleDelete = async (id: string) => {
+    if (!currentUserId) {
+        setErrorMessage("Utilisateur non authentifié.");
+        setShowError(true);
+        return;
+    }
     if (!confirm("Supprimer cette éclosion ?")) return;
     try {
       await deleteEclosionAction(id, currentUserId);
@@ -137,7 +147,7 @@ export default function EclosionPage() {
   };
 
   const handlePaiement = async (values: { prix: number, paye: boolean }) => {
-    if (!selectedEclosion) return;
+    if (!selectedEclosion || !currentUserId) return;
     try {
         await updateEclosionAction(selectedEclosion.id, { prix: values.prix, paye: values.paye }, currentUserId);
         setShowSuccess(true);

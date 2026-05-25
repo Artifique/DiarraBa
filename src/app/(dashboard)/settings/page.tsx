@@ -24,7 +24,7 @@ const formSchema = z.object({
 
 const appSettingsFormSchema = z.object({
   email_notifications_enabled: z.boolean(),
-  low_stock_threshold: z.preprocess((val) => Number(val), z.number().min(0)),
+  low_stock_threshold: z.number().min(0),
 });
 
 type ManagerFormValues = z.infer<typeof formSchema>;

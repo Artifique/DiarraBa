@@ -27,11 +27,11 @@ const formSchema = z.object({
   date_reservation: z.string().min(1, "Date requise."),
   date_finale: z.string().min(1, "Date requise."),
   mode_paiement: z.string().optional().nullable(),
-  methode_paiement: z.enum(["Tranche", "Totalité"], { required_error: "Le type de paiement est requis." }),
+  methode_paiement: z.string().min(1, "Type de paiement requis."),
   montant_total: z.number().min(0).optional(),
   lignes: z.array(z.object({
     produitId: z.string().min(1, "Produit requis."),
-    quantite: z.preprocess((val) => (val === "" || val === null ? 1 : Number(val)), z.number().min(1)),
+    quantite: z.number().min(1, "Minimum 1."),
     prix_unitaire: z.number().min(0).optional(),
   })).min(1, "Au moins un produit."),
 });
@@ -39,7 +39,7 @@ const formSchema = z.object({
 type ReservationFormValues = z.infer<typeof formSchema>;
 
 const paiementFormSchema = z.object({
-  montant: z.preprocess((val) => (val === "" || val === null ? 0 : Number(val)), z.number().min(1, "Montant requis.")),
+  montant: z.number().min(1, "Montant requis."),
   methode: z.enum(["Tranche", "Totalité"]),
   mode: z.string().optional().nullable(),
 });
@@ -123,6 +123,11 @@ export default function ReservationPage() {
   useEffect(() => { setValue("montant_total", montantTotal); }, [montantTotal, setValue]);
 
   const onSubmit = async (values: ReservationFormValues) => {
+    if (!currentUserId) {
+        setErrorMessage("Utilisateur non authentifié.");
+        setShowError(true);
+        return;
+    }
     try {
       const newReservation = await createReservationAction({
         client: values.clientId ? { connect: { id: values.clientId } } : undefined,
@@ -168,8 +173,22 @@ export default function ReservationPage() {
 
   const handleDelete = async () => {
     if (!deleteId) return;
-    try { await deleteReservationAction(deleteId, currentUserId); setShowSuccess(true); fetchData(); setDeleteId(null); } 
-    catch (e: any) { setErrorMessage("Erreur suppression."); setShowError(true); setDeleteId(null); }
+    if (!currentUserId) {
+        setErrorMessage("Utilisateur non authentifié.");
+        setShowError(true);
+        return;
+    }
+    try { 
+        await deleteReservationAction(deleteId, currentUserId); 
+        setShowSuccess(true); 
+        fetchData(); 
+        setDeleteId(null); 
+    } 
+    catch (e: any) { 
+        setErrorMessage("Erreur suppression."); 
+        setShowError(true); 
+        setDeleteId(null); 
+    }
   };
 
   const openCreateModal = () => {
@@ -201,7 +220,7 @@ export default function ReservationPage() {
   };
 
   const onPaiementSubmit = async (values: PaiementFormValues) => {
-    if (!selectedReservationForPaiement) return;
+    if (!selectedReservationForPaiement || !currentUserId) return;
     try {
       await createPaiementAction({
         reservation: { connect: { id: selectedReservationForPaiement.id } },
@@ -217,6 +236,11 @@ export default function ReservationPage() {
   };
 
   const generateInvoice = async (reservation: PrismaReservation) => {
+    if (!currentUserId) {
+        setErrorMessage("Utilisateur non authentifié.");
+        setShowError(true);
+        return;
+    }
     try {
       const doc = new jsPDF();
       doc.setFontSize(22); doc.text("FACTURE", 105, 20, { align: "center" });
