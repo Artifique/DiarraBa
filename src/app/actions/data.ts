@@ -78,7 +78,14 @@ export async function createPaiementAction(data: any, userId: string) { return p
 export async function createFactureAction(data: any, userId: string) { return factureService.createFacture(data, userId); }
 
 // Notifications
-export async function getNonLuesAction(userId: string) { return notificationService.getNonLues(userId); }
+export async function getNonLuesAction(userId: string) { 
+    try {
+        return await notificationService.getNonLues(userId);
+    } catch (e) {
+        console.error("Erreur récupération notifications:", e);
+        return [];
+    }
+}
 export async function markAsReadAction(id: string) { return notificationService.markAsRead(id); }
 export async function markAllAsReadAction(userId: string) { return notificationService.markAllAsRead(userId); }
 export async function deleteNotifAction(id: string) { return notificationService.delete(id); }

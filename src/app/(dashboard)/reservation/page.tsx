@@ -18,6 +18,7 @@ import { cn } from "@/lib/utils";
 import { Pagination } from "@/components/ui/pagination";
 import jsPDF from "jspdf";
 import "jspdf-autotable";
+const autoTable = (jsPDF as any).prototype.autoTable;
 
 const formSchema = z.object({
   clientId: z.string().optional().nullable(),
@@ -188,10 +189,13 @@ export default function ReservationPage() {
         reservation: { connect: { id: selectedReservationForPaiement.id } },
         montant: values.montant,
         mode_paiement: values.mode || null,
-        methode_paiement: values.methode,
       }, currentUserId);
       setShowSuccess(true); setIsPaiementModalOpen(false); resetPaiement(); fetchData();
-    } catch (e: any) { setErrorMessage("Erreur paiement."); setShowError(true); }
+    } catch (e: any) { 
+        console.error("Erreur paiement:", e);
+        setErrorMessage(e.message || "Erreur lors du paiement."); 
+        setShowError(true); 
+    }
   };
 
   const generateInvoice = async (reservation: PrismaReservation) => {
@@ -210,9 +214,26 @@ export default function ReservationPage() {
         theme: 'grid',
         headStyles: { fillColor: [245, 166, 35] }
       });
+
+      const totalPaye = (reservation as any).paiements?.reduce((acc: any, p: any) => acc + p.montant, 0) || 0;
+      
+      await createFactureAction({
+        reservation: { connect: { id: reservation.id } },
+        numero: `FAC-${Date.now().toString().slice(-6)}`,
+        date_facture: new Date(),
+        montant_total: reservation.montant_total,
+        montant_paye: totalPaye,
+        montant_restant: reservation.montant_total - totalPaye,
+        statut: (reservation.montant_total - totalPaye) <= 0 ? "Payee" : "Partielle",
+      }, currentUserId);
+
       doc.save(`facture-${reservation.id.slice(0, 5)}.pdf`);
       setShowSuccess(true);
-    } catch (e) { setErrorMessage("Erreur PDF."); setShowError(true); }
+    } catch (e: any) { 
+        console.error("Erreur PDF:", e);
+        setErrorMessage("Erreur lors de la génération PDF."); 
+        setShowError(true); 
+    }
   };
 
   if (loading) return <div className="flex justify-center items-center h-[calc(100vh-200px)]"><Loader2 className="h-12 w-12 animate-spin text-orange-accent" /></div>;
