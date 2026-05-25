@@ -59,7 +59,6 @@ export function Sidebar() {
         </div>
         <div className={cn("flex flex-col overflow-hidden lg:flex", (collapsed) ? "hidden" : "hidden lg:block")} suppressHydrationWarning>
           <span className="text-lg font-display font-bold text-white tracking-wider leading-none">DIARRABA</span>
-          <span className="text-[9px] font-bold text-orange-accent tracking-[0.2em] mt-1">GÉRANCE</span>
         </div>
       </div>
 
