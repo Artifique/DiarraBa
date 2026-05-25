@@ -59,6 +59,20 @@ export const userService = {
     });
   },
 
+  async updatePassword(id: string, currentPassword: string, newPassword: string): Promise<User> {
+    const user = await prisma.user.findUnique({ where: { id } });
+    if (!user) throw new Error("Utilisateur non trouvé.");
+    
+    const isPasswordValid = await bcrypt.compare(currentPassword, user.password);
+    if (!isPasswordValid) throw new Error("Mot de passe actuel incorrect.");
+    
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
+    return prisma.user.update({
+      where: { id },
+      data: { password: hashedPassword },
+    });
+  },
+
   async deleteUser(id: string): Promise<User> {
     return prisma.user.delete({
       where: { id },

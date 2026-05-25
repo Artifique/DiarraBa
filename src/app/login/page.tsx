@@ -51,7 +51,7 @@ export default function LoginPage() {
           </div>
           <div className="text-center space-y-1">
             <h1 className="text-2xl font-display font-bold text-white">Connexion</h1>
-            <p className="text-muted-foreground text-sm">Bienvenue sur Diarraba Volaille</p>
+            <p className="text-muted-foreground text-sm">Bienvenue sur DIARRABA</p>
           </div>
         </div>
         <form onSubmit={handleLogin} className="space-y-4">

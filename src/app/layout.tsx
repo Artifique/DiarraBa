@@ -18,7 +18,7 @@ import "./globals.css";
 // });
 
 export const metadata: Metadata = {
-  title: "Diarraba Volailles | Gestion Premium",
+  title: "DIARRABA | Gestion Premium",
   description: "Système de gestion moderne pour ferme avicole",
 };
 
