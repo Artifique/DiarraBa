@@ -29,10 +29,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="fr" className="dark" suppressHydrationWarning>
-      <body
-        className={`antialiased font-sans`}
-        suppressHydrationWarning
-      >
+      <body className="antialiased font-sans" suppressHydrationWarning>
         {children}
       </body>
     </html>
