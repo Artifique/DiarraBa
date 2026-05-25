@@ -6,7 +6,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Settings, User, Save, Loader2, CheckCircle2, AlertCircle, Mail, Phone, Lock, Bell, Gauge } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { User as PrismaUser, Setting as PrismaSetting } from "../../../generated/prisma/index";
-import { settingsService } from "@/lib/services";
+import { getAllSettingsAction, updateSettingAction, createSettingAction, updatePasswordAction } from "../../actions/data";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -67,7 +67,7 @@ export default function SettingsPage() {
             telephone: userData.telephone,
           });
         }
-        const fetchedSettings = await settingsService.getAllSettings();
+        const fetchedSettings = await getAllSettingsAction();
         setAppSettings(fetchedSettings);
         resetAppSettings({
           email_notifications_enabled: fetchedSettings.find(s => s.key === "email_notifications_enabled")?.value === "true",
@@ -81,6 +81,29 @@ export default function SettingsPage() {
     };
     fetchInitialData();
   }, [resetProfile, resetAppSettings]);
+
+  const [passwordSaving, setPasswordSaving] = useState(false);
+  const passwordForm = useForm({
+    resolver: zodResolver(z.object({
+        currentPassword: z.string().min(1, "Requis"),
+        newPassword: z.string().min(6, "6 caractères min."),
+        confirmPassword: z.string().min(6, "6 caractères min.")
+    }).refine((data) => data.newPassword === data.confirmPassword, {
+        message: "Les mots de passe ne correspondent pas",
+        path: ["confirmPassword"],
+    })),
+  });
+
+  const onPasswordSubmit = async (values: any) => {
+    if (!user) return;
+    setPasswordSaving(true);
+    try {
+      await updatePasswordAction(user.id, values.currentPassword, values.newPassword);
+      setShowSuccess(true);
+      passwordForm.reset();
+    } catch (e: any) { setErrorMessage(e.message || "Erreur lors du changement."); setShowError(true); }
+    finally { setPasswordSaving(false); }
+  };
 
   const onProfileSubmit = async (values: ManagerFormValues) => {
     if (!user) return;
@@ -100,8 +123,8 @@ export default function SettingsPage() {
     try {
       const save = async (key: string, value: string) => {
         const existing = appSettings.find(s => s.key === key);
-        if (existing) await settingsService.updateSetting(existing.id, { value }, user.id);
-        else await settingsService.createSetting({ key, value, type: "text", description: key, userId: user.id }, user.id);
+        if (existing) await updateSettingAction(existing.id, { value }, user.id);
+        else await createSettingAction({ key, value, type: "text", description: key, userId: user.id }, user.id);
       };
       await Promise.all([
         save("email_notifications_enabled", String(values.email_notifications_enabled)),
@@ -132,18 +155,34 @@ export default function SettingsPage() {
 
         <div className="md:col-span-9">
           {activeTab === "profile" ? (
-            <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} className="glass-card p-8 rounded-[2rem] border border-white/10 shadow-2xl">
-              <form onSubmit={handleProfileSubmit(onProfileSubmit)} className="space-y-6">
-                <div className="flex items-center justify-between pb-6 border-b border-white/5">
-                    <h3 className="font-display font-bold text-xl text-white">Profil</h3>
-                    <Button type="submit" disabled={saving} className="bg-orange-accent text-night font-black uppercase tracking-widest h-12 px-8 rounded-xl shadow-lg">Enregistrer</Button>
-                </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div className="space-y-2"><Label className="text-[10px] font-black text-white/40 uppercase">Nom complet</Label><Input {...registerProfile("nom")} className="bg-white/5 border-white/10 h-12 rounded-xl" /></div>
-                  <div className="space-y-2"><Label className="text-[10px] font-black text-white/40 uppercase">Email</Label><Input {...registerProfile("email")} className="bg-white/5 border-white/10 h-12 rounded-xl" /></div>
-                  <div className="space-y-2"><Label className="text-[10px] font-black text-white/40 uppercase">Téléphone</Label><Input {...registerProfile("telephone")} className="bg-white/5 border-white/10 h-12 rounded-xl" /></div>
-                </div>
-              </form>
+            <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} className="space-y-6">
+              <div className="glass-card p-8 rounded-[2rem] border border-white/10 shadow-2xl">
+                <form onSubmit={handleProfileSubmit(onProfileSubmit)} className="space-y-6">
+                  <div className="flex items-center justify-between pb-6 border-b border-white/5">
+                      <h3 className="font-display font-bold text-xl text-white">Profil</h3>
+                      <Button type="submit" disabled={saving} className="bg-orange-accent text-night font-black uppercase tracking-widest h-12 px-8 rounded-xl shadow-lg">Enregistrer</Button>
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div className="space-y-2"><Label className="text-[10px] font-black text-white/40 uppercase">Nom complet</Label><Input {...registerProfile("nom")} className="bg-white/5 border-white/10 h-12 rounded-xl" /></div>
+                    <div className="space-y-2"><Label className="text-[10px] font-black text-white/40 uppercase">Email</Label><Input {...registerProfile("email")} className="bg-white/5 border-white/10 h-12 rounded-xl" /></div>
+                    <div className="space-y-2"><Label className="text-[10px] font-black text-white/40 uppercase">Téléphone</Label><Input {...registerProfile("telephone")} className="bg-white/5 border-white/10 h-12 rounded-xl" /></div>
+                  </div>
+                </form>
+              </div>
+
+              <div className="glass-card p-8 rounded-[2rem] border border-white/10 shadow-2xl">
+                  <form onSubmit={passwordForm.handleSubmit(onPasswordSubmit)} className="space-y-6">
+                      <div className="flex items-center justify-between pb-6 border-b border-white/5">
+                          <h3 className="font-display font-bold text-xl text-white">Sécurité</h3>
+                          <Button type="submit" disabled={passwordSaving} className="bg-orange-accent text-night font-black uppercase tracking-widest h-12 px-8 rounded-xl shadow-lg">Changer</Button>
+                      </div>
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                          <div className="space-y-2"><Label className="text-[10px] font-black text-white/40 uppercase">Mot de passe actuel</Label><PasswordInput {...passwordForm.register("currentPassword")} className="bg-white/5 border-white/10 h-12 rounded-xl" /></div>
+                          <div className="space-y-2"><Label className="text-[10px] font-black text-white/40 uppercase">Nouveau</Label><PasswordInput {...passwordForm.register("newPassword")} className="bg-white/5 border-white/10 h-12 rounded-xl" /></div>
+                          <div className="space-y-2"><Label className="text-[10px] font-black text-white/40 uppercase">Confirmation</Label><PasswordInput {...passwordForm.register("confirmPassword")} className="bg-white/5 border-white/10 h-12 rounded-xl" /></div>
+                      </div>
+                  </form>
+              </div>
             </motion.div>
           ) : (
             <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} className="glass-card p-8 rounded-[2rem] border border-white/10 shadow-2xl">
@@ -175,7 +214,7 @@ export default function SettingsPage() {
       </div>
       
       <Dialog open={showSuccess} onOpenChange={setShowSuccess}><DialogContent className="bg-night/95 backdrop-blur-xl text-white text-center border-white/10 rounded-[2.5rem] p-10 max-w-sm"><div className="flex flex-col items-center gap-6"><div className="h-20 w-20 bg-forest-green/20 rounded-full flex items-center justify-center animate-bounce"><CheckCircle2 className="h-10 w-10 text-forest-green" /></div> <div className="space-y-2"><DialogTitle className="text-3xl font-display font-bold">Parfait !</DialogTitle><p className="text-muted-foreground text-sm">Modifications enregistrées avec succès.</p></div><Button onClick={() => setShowSuccess(false)} className="w-full bg-forest-green text-white rounded-xl h-12 font-bold">Continuer</Button></div></DialogContent></Dialog>
-      <Dialog open={showError} onOpenChange={setShowError}><DialogContent className="bg-night/95 backdrop-blur-xl text-white text-center border-white/10 rounded-[2.5rem] p-10 max-w-sm"><div className="flex flex-col items-center gap-6"><div className="h-20 w-20 bg-destructive/20 rounded-full flex items-center justify-center"><AlertCircle className="h-10 w-10 text-destructive" /></div> <div className="space-y-2"><DialogTitle className="text-3xl font-display font-bold">Erreur</DialogTitle><p className="text-destructive/80 text-sm">{errorMessage}</p></div><Button onClick={() => setShowError(false)} className="w-full bg-destructive text-white rounded-xl h-12 font-bold">Reessayer</Button></div></DialogContent></Dialog>
+      <Dialog open={showError} onOpenChange={setShowError}><DialogContent className="bg-night/95 backdrop-blur-xl text-white text-center border-white/10 rounded-[2.5rem] p-10 max-w-sm"><div className="flex flex-col items-center gap-6"><div className="h-20 w-20 bg-destructive/20 rounded-full flex items-center justify-center"><AlertCircle className="h-10 w-10 text-destructive" /></div> <div className="space-y-2"><DialogTitle className="text-3xl font-display font-bold">Erreur</DialogTitle><p className="text-destructive/80 text-sm font-medium">{errorMessage}</p></div><Button onClick={() => setShowError(false)} className="w-full bg-destructive text-white rounded-xl h-12 font-bold">Reessayer</Button></div></DialogContent></Dialog>
     </div>
   );
 }

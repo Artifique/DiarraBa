@@ -100,7 +100,6 @@ export async function deleteEclosionAction(id: string, userId: string) { return 
 
 // Settings
 export async function getAllSettingsAction() { return settingsService.getAllSettings(); }
-export async function getSettingByIdAction(id: string) { return settingsService.getSettingById(id); }
 export async function createSettingAction(data: any, userId: string) { return settingsService.createSetting(data, userId); }
 export async function updateSettingAction(id: string, data: any, userId: string) { return settingsService.updateSetting(id, data, userId); }
 
@@ -109,6 +108,7 @@ export async function getAllUsersAction(page: number, limit: number) { return us
 export async function countUsersAction() { return userService.countUsers(); }
 export async function createUserAction(data: any) { return userService.createUser(data); }
 export async function deleteUserAction(id: string) { return userService.deleteUser(id); }
+export async function updatePasswordAction(id: string, currentPassword: string, newPassword: string) { return userService.updatePassword(id, currentPassword, newPassword); }
 
 // Dashboard
 import { dashboardService } from "@/lib/services/dashboard.service";

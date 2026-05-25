@@ -7,7 +7,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
-import { getNonLuesAction, markAsReadAction, markAllAsReadAction, deleteNotifAction } from "../../actions/data";
+import { getNonLuesAction, markAsReadAction, markAllAsReadAction, deleteNotifAction, checkAndGenerateNotificationsAction } from "../../actions/data";
 import { Notification } from "../../../generated/prisma/index";
 
 const notificationIcons: { [key: string]: { icon: any; color: string; bg: string } } = {
@@ -40,6 +40,7 @@ export default function NotificationsPage() {
       const tempUserId = user?.id;
       if (tempUserId) {
         setUserId(tempUserId);
+        await checkAndGenerateNotificationsAction(tempUserId); // Force la vérification
         fetchNotifications(tempUserId);
       } else {
         setLoading(false);

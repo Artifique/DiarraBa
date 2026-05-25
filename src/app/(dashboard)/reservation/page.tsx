@@ -148,10 +148,28 @@ export default function ReservationPage() {
     } catch (e: any) { setErrorMessage(e.message || "Erreur création."); setShowError(true); }
   };
 
-  const handleDelete = async (id: string) => {
-    if (!confirm("Supprimer cette réservation ?")) return;
-    try { await deleteReservationAction(id, currentUserId); setShowSuccess(true); fetchData(); } 
-    catch (e: any) { setErrorMessage("Erreur suppression."); setShowError(true); }
+  const openEditModal = (res: PrismaReservation) => {
+    setEditingReservation(res);
+    reset({
+      clientId: (res as any).clientId,
+      clientNom: (res as any).clientNom || "",
+      clientTel: (res as any).clientTel || "",
+      date_reservation: new Date(res.date_reservation).toISOString().split('T')[0],
+      date_finale: new Date(res.date_finale).toISOString().split('T')[0],
+      mode_paiement: res.mode_paiement || "",
+      methode_paiement: res.methode_paiement as "Tranche" | "Totalité",
+      montant_total: res.montant_total,
+      lignes: (res as any).lignes.map((l: any) => ({ produitId: l.produitId, quantite: l.quantite })),
+    });
+    setIsModalOpen(true);
+  };
+
+  const [deleteId, setDeleteId] = useState<string | null>(null);
+
+  const handleDelete = async () => {
+    if (!deleteId) return;
+    try { await deleteReservationAction(deleteId, currentUserId); setShowSuccess(true); fetchData(); setDeleteId(null); } 
+    catch (e: any) { setErrorMessage("Erreur suppression."); setShowError(true); setDeleteId(null); }
   };
 
   const openCreateModal = () => {
@@ -272,9 +290,10 @@ export default function ReservationPage() {
                         <td className="p-4 md:p-6 text-center font-mono text-white">{res.montant_total.toLocaleString()} FCFA</td>
                         <td className="p-4 md:p-6 text-center font-bold text-red-400">{reste.toLocaleString()} FCFA</td>
                         <td className="p-4 md:p-6 text-right flex justify-end gap-1">
-                            <Button variant="ghost" size="icon" onClick={() => openPaiementModal(res)}><DollarSign className="h-5 w-5" /></Button>
-                            <Button variant="ghost" size="icon" onClick={() => generateInvoice(res)}><Printer className="h-5 w-5" /></Button>
-                            <Button variant="ghost" size="icon" onClick={() => handleDelete(res.id)}><Trash2 className="h-5 w-5" /></Button>
+                            <Button variant="ghost" size="icon" onClick={() => openPaiementModal(res)} className="text-forest-green hover:bg-forest-green/10"><DollarSign className="h-5 w-5" /></Button>
+                            <Button variant="ghost" size="icon" onClick={() => generateInvoice(res)} className="text-blue-400 hover:bg-blue-400/10"><Printer className="h-5 w-5" /></Button>
+                            <Button variant="ghost" size="icon" onClick={() => openEditModal(res)} className="text-orange-accent hover:bg-orange-accent/10"><Edit className="h-5 w-5" /></Button>
+                            <Button variant="ghost" size="icon" onClick={() => setDeleteId(res.id)} className="text-destructive hover:bg-destructive/10"><Trash2 className="h-5 w-5" /></Button>
                         </td>
                     </tr>
                 );
@@ -282,6 +301,23 @@ export default function ReservationPage() {
           </tbody>
         </table>
       </div>
+
+      {/* Confirmation Suppression */}
+      <Dialog open={!!deleteId} onOpenChange={() => setDeleteId(null)}>
+        <DialogContent className="bg-night/95 backdrop-blur-xl text-white border-white/10 rounded-[2.5rem] p-10 max-w-sm text-center">
+            <div className="flex flex-col items-center gap-6">
+                <div className="h-20 w-20 bg-destructive/20 rounded-full flex items-center justify-center"><Trash2 className="h-10 w-10 text-destructive" /></div> 
+                <div className="space-y-2">
+                    <DialogTitle className="text-2xl font-display font-bold">Supprimer ?</DialogTitle>
+                    <p className="text-sm text-muted-foreground">Cette action est irréversible.</p>
+                </div>
+                <div className="flex w-full gap-3">
+                    <Button variant="ghost" className="flex-1 rounded-xl h-12" onClick={() => setDeleteId(null)}>Annuler</Button>
+                    <Button className="flex-1 bg-destructive hover:bg-destructive/90 rounded-xl h-12" onClick={handleDelete}>Supprimer</Button>
+                </div>
+            </div>
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
         <DialogContent className="bg-night/95 backdrop-blur-2xl border-white/10 text-white sm:max-w-4xl rounded-[2rem] p-0 overflow-hidden shadow-2xl">

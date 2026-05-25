@@ -60,99 +60,54 @@ export const notificationService = {
   },
 
   async checkAndGenerateNotifications(userId: string) {
+    console.log("DEBUG: Lancement vérification notifications pour", userId);
     const today = new Date();
-    today.setHours(0, 0, 0, 0); // Pour comparer uniquement la date
+    today.setHours(0, 0, 0, 0);
 
-    // Récupérer le seuil de stock faible
-    const thresholdSetting = await prisma.setting.findUnique({
-      where: { key: "low_stock_threshold" },
-    });
-    const threshold = thresholdSetting ? Number(thresholdSetting.value) : 5;
+    const tomorrow = new Date(today);
+    tomorrow.setDate(today.getDate() + 1);
 
-    // 1. Vérifier les réservations arrivant à échéance aujourd'hui ou passées
+    // 1. Réservations
     const reservations = await prisma.reservation.findMany({
       where: {
         date_finale: {
-          lte: today, // date_finale est égale ou antérieure à aujourd'hui
+          gte: tomorrow,
+          lt: new Date(tomorrow.getTime() + 86400000)
         },
-        // Ajoutez ici d'autres critères si nécessaire (ex: statut "EnAttente")
       },
-      include: {
-        client: true, // Inclure les infos du client
-      },
+      include: { client: true },
     });
+    console.log("DEBUG: Réservations J-1 trouvées :", reservations.length);
 
     for (const res of reservations) {
-      const clientNom = res.client?.nom || "Client inconnu";
-      const message = `La réservation #${res.id.slice(0, 8)} pour ${clientNom} est arrivée à date.`;
+      const message = `Rappel : La réservation #${res.id.slice(0, 8)} pour ${res.client?.nom || "Client"} expire demain.`;
       await createIfNotExists(userId, "Reservation", message, res.id);
     }
 
-    // 2. Vérifier les stocks de produits
-    const produits = await prisma.produit.findMany({
-      where: {
-        quantite: {
-          lte: threshold,
-        },
-      },
-      select: {
-        id: true,
-        nom: true,
-        quantite: true,
-      },
-    });
+    // 2. Stocks faibles
+    const thresholdSetting = await prisma.setting.findUnique({ where: { key: "low_stock_threshold" } });
+    const threshold = thresholdSetting ? Number(thresholdSetting.value) : 5;
+    const produits = await prisma.produit.findMany({ where: { quantite: { lte: threshold } } });
+    console.log("DEBUG: Produits sous seuil", threshold, ":", produits.length);
 
     for (const prod of produits) {
-      const message = `Stock faible pour le produit "${prod.nom}" : seulement ${prod.quantite} restants.`;
+      const message = `Stock faible : "${prod.nom}" (${prod.quantite} restants).`;
       await createIfNotExists(userId, "Alerte", message, prod.id);
     }
 
-    // 3. Vérifier les éclosions (10e et 20e jour)
+    // 3. Éclosions (J10, J20)
     const eclosions = await prisma.eclosion.findMany({
-      where: {
-        date_debut: {
-          lte: today,
-        },
-      },
+        where: { paye: true }
     });
 
-    for (const eclosion of eclosions) {
-      const diffTime = Math.abs(today.getTime() - eclosion.date_debut.getTime());
-      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    for (const e of eclosions) {
+      const diffTime = today.getTime() - e.date_debut.getTime();
+      const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
 
       if (diffDays === 10) {
-        const message = `Rappel: C'est le 10ème jour de l'éclosion #${eclosion.id.slice(0, 8)}.`;
-        await createIfNotExists(userId, "Alerte", message, eclosion.id);
+        await createIfNotExists(userId, "Alerte", `Éclosion #${e.id.slice(0, 8)}: 10ème jour atteint.`, e.id);
       } else if (diffDays === 20) {
-        const message = `Alerte: C'est le 20ème et dernier jour de l'éclosion #${eclosion.id.slice(0, 8)}.`;
-        await createIfNotExists(userId, "Alerte", message, eclosion.id);
-      }
-    }
-
-    // 4. Vérifier les factures impayées ou en retard
-    const factures = await prisma.facture.findMany({
-      where: {
-        date_facture: {
-          lte: today,
-        },
-        montant_paye: {
-          lt: prisma.facture.fields.montant_total, // montant_paye est inférieur au montant_total
-        },
-      },
-      include: {
-        reservation: {
-          include: {
-            client: true, // Inclure le client via la réservation
-          },
-        },
-      },
-    });
-
-    for (const fac of factures) {
-      if (fac.montant_paye < fac.montant_total) {
-        const clientNom = fac.reservation?.client?.nom || "Client inconnu";
-        const message = `La facture #${fac.id.slice(0, 8)} pour ${clientNom} n'est pas encore totalement réglée.`;
-        await createIfNotExists(userId, "Paiement", message, fac.id);
+        await createIfNotExists(userId, "Alerte", `Éclosion #${e.id.slice(0, 8)}: 20ème jour, fin du cycle.`, e.id);
       }
     }
   },

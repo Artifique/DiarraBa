@@ -144,6 +144,33 @@ export default function EclosionPage() {
     setIsModalOpen(true);
   };
 
+  const [isPaiementModalOpen, setIsPaiementModalOpen] = useState(false);
+  const [selectedEclosion, setSelectedEclosion] = useState<PrismaEclosion | null>(null);
+
+  // Formulaire Paiement
+  const paiementForm = useForm({
+    defaultValues: { prix: 0, paye: false }
+  });
+
+  const openPaiementModal = (e: PrismaEclosion) => {
+    setSelectedEclosion(e);
+    paiementForm.reset({ prix: e.prix, paye: e.paye });
+    setIsPaiementModalOpen(true);
+  };
+
+  const handlePaiement = async (values: { prix: number, paye: boolean }) => {
+    if (!selectedEclosion) return;
+    try {
+        await updateEclosionAction(selectedEclosion.id, { prix: values.prix, paye: values.paye }, currentUserId);
+        setShowSuccess(true);
+        setIsPaiementModalOpen(false);
+        fetchEclosions(currentPage);
+    } catch (e) {
+        setErrorMessage("Erreur lors de l'enregistrement.");
+        setShowError(true);
+    }
+  };
+
   if (loading) return <div className="flex justify-center items-center h-[calc(100vh-200px)]"><Loader2 className="h-12 w-12 animate-spin text-orange-accent" /></div>;
 
   return (
