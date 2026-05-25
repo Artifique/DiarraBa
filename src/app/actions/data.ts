@@ -66,6 +66,7 @@ export async function createReservationAction(data: any, userId: string) {
         clientId: client.id
     }, userId);
 }
+export async function updateReservationAction(id: string, data: any, userId: string) { return reservationService.updateReservation(id, data, userId); }
 export async function addLigneReservationAction(data: any, userId: string) { return reservationService.addLigneReservation(data, userId); }
 export async function deleteReservationAction(id: string, userId: string) { return reservationService.deleteReservation(id, userId); }
 export async function getReservationsAction() { return reservationService.getAllReservations(); }
