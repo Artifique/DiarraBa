@@ -255,45 +255,49 @@ export default function ReservationPage() {
         <DialogContent className="bg-night/95 backdrop-blur-2xl border-white/10 text-white sm:max-w-4xl rounded-[2rem] p-0 overflow-hidden shadow-2xl">
           <div className="absolute top-0 left-0 w-full h-1.5 bg-gradient-to-r from-orange-accent via-yellow-500 to-orange-accent opacity-70" />
           <DialogHeader className="pt-8 px-8"><DialogTitle className="text-3xl font-display font-bold">Nouvelle Réservation</DialogTitle></DialogHeader>
-          <form onSubmit={handleSubmit(onSubmit)} className="p-8 space-y-6">
-            <div className="grid grid-cols-2 gap-8">
-                <div className="space-y-4">
-                    <h3 className="text-orange-accent uppercase font-black text-[10px]">Client</h3>
-                    <Select onValueChange={(v) => setValue("clientId", v === "null" ? null : v)}>
-                        <SelectTrigger className="bg-white/5 h-12 rounded-xl"><SelectValue placeholder="Sélectionner client (Opt)" /></SelectTrigger>
-                        <SelectContent className="bg-night border-white/10"><SelectItem value="null">Nouveau Client</SelectItem>{clients.map(c => <SelectItem key={c.id} value={c.id}>{c.nom || c.telephone}</SelectItem>)}</SelectContent>
-                    </Select>
-                    <Input placeholder="Nom client (Opt)" {...register("clientNom")} className="bg-white/5 h-12 rounded-xl" />
-                    <Input placeholder="Téléphone *" {...register("clientTel")} className="bg-white/5 h-12 rounded-xl" />
-                </div>
-                <div className="space-y-4">
-                    <h3 className="text-blue-400 uppercase font-black text-[10px]">Détails</h3>
-                    <Select onValueChange={(v) => setValue("mode_paiement", v)}>
-                        <SelectTrigger className="bg-white/5 h-12 rounded-xl"><SelectValue placeholder="Mode de paiement (Opt)" /></SelectTrigger>
-                        <SelectContent className="bg-night border-white/10"><SelectItem value="Wave">Wave</SelectItem><SelectItem value="OrangeMoney">Orange Money</SelectItem><SelectItem value="Cash">Espèces</SelectItem></SelectContent>
-                    </Select>
-                    <Input type="date" {...register("date_reservation")} className="bg-white/5 h-12 rounded-xl" />
-                    <Input type="date" {...register("date_finale")} className="bg-white/5 h-12 rounded-xl" />
-                </div>
-            </div>
-
-            <div className="space-y-4 pt-4 border-t border-white/5">
-                <h3 className="text-forest-green uppercase font-black text-[10px]">Produits</h3>
-                {fields.map((field, index) => (
-                    <div key={field.id} className="grid grid-cols-12 gap-4 items-center">
-                        <Select onValueChange={(v) => setValue(`lignes.${index}.produitId`, v)}>
-                            <SelectTrigger className="col-span-6 bg-white/5 h-12 rounded-xl"><SelectValue placeholder="Produit" /></SelectTrigger>
-                            <SelectContent className="bg-night border-white/10">{produits.map(p => <SelectItem key={p.id} value={p.id}>{p.nom}</SelectItem>)}</SelectContent>
+          <DialogHeader className="pt-8 px-8"><DialogTitle className="text-3xl font-display font-bold">Nouvelle Réservation</DialogTitle></DialogHeader>
+          <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col h-full overflow-hidden">
+            <div className="p-8 space-y-6 overflow-y-auto max-h-[70vh] custom-scrollbar">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                    <div className="space-y-4">
+                        <h3 className="text-orange-accent uppercase font-black text-[10px]">Client</h3>
+                        <Select onValueChange={(v) => setValue("clientId", v === "null" ? null : v)}>
+                            <SelectTrigger className="bg-white/5 h-12 rounded-xl"><SelectValue placeholder="Sélectionner client (Opt)" /></SelectTrigger>
+                            <SelectContent className="bg-night border-white/10"><SelectItem value="null">Nouveau Client</SelectItem>{clients.map(c => <SelectItem key={c.id} value={c.id}>{c.nom || c.telephone}</SelectItem>)}</SelectContent>
                         </Select>
-                        <Input type="number" placeholder="Qté" {...register(`lignes.${index}.quantite`, { valueAsNumber: true })} className="col-span-3 bg-white/5 h-12 rounded-xl" />
-                        <Button type="button" variant="ghost" onClick={() => remove(index)} className="col-span-3 text-destructive"><Trash2 className="h-5 w-5" /></Button>
+                        <Input placeholder="Nom client (Opt)" {...register("clientNom")} className="bg-white/5 h-12 rounded-xl" />
+                        <Input placeholder="Téléphone *" {...register("clientTel")} className="bg-white/5 h-12 rounded-xl" />
                     </div>
-                ))}
-                <Button type="button" onClick={() => append({ produitId: "", quantite: 1 })} variant="outline" className="w-full h-12 rounded-xl">+ Ajouter Produit</Button>
-                <div className="text-lg font-black text-white pt-2 text-right">Total: {montantTotal.toLocaleString()} FCFA</div>
-            </div>
+                    <div className="space-y-4">
+                        <h3 className="text-blue-400 uppercase font-black text-[10px]">Détails</h3>
+                        <Select onValueChange={(v) => setValue("mode_paiement", v)}>
+                            <SelectTrigger className="bg-white/5 h-12 rounded-xl"><SelectValue placeholder="Mode de paiement (Opt)" /></SelectTrigger>
+                            <SelectContent className="bg-night border-white/10"><SelectItem value="Wave">Wave</SelectItem><SelectItem value="OrangeMoney">Orange Money</SelectItem><SelectItem value="Cash">Espèces</SelectItem></SelectContent>
+                        </Select>
+                        <Input type="date" {...register("date_reservation")} className="bg-white/5 h-12 rounded-xl" />
+                        <Input type="date" {...register("date_finale")} className="bg-white/5 h-12 rounded-xl" />
+                    </div>
+                </div>
 
-            <DialogFooter><Button type="submit" className="bg-orange-accent text-night font-black h-14 w-full rounded-2xl shadow-xl active:scale-95">Valider la réservation</Button></DialogFooter>
+                <div className="space-y-4 pt-4 border-t border-white/5">
+                    <h3 className="text-forest-green uppercase font-black text-[10px]">Produits</h3>
+                    {fields.map((field, index) => (
+                        <div key={field.id} className="grid grid-cols-12 gap-2 items-center">
+                            <Select onValueChange={(v) => setValue(`lignes.${index}.produitId`, v)}>
+                                <SelectTrigger className="col-span-6 bg-white/5 h-12 rounded-xl"><SelectValue placeholder="Produit" /></SelectTrigger>
+                                <SelectContent className="bg-night border-white/10">{produits.map(p => <SelectItem key={p.id} value={p.id}>{p.nom}</SelectItem>)}</SelectContent>
+                            </Select>
+                            <Input type="number" placeholder="Qté" {...register(`lignes.${index}.quantite`, { valueAsNumber: true })} className="col-span-3 bg-white/5 h-12 rounded-xl" />
+                            <Button type="button" variant="ghost" onClick={() => remove(index)} className="col-span-3 text-destructive"><Trash2 className="h-5 w-5" /></Button>
+                        </div>
+                    ))}
+                    <Button type="button" onClick={() => append({ produitId: "", quantite: 1 })} variant="outline" className="w-full h-12 rounded-xl">+ Ajouter Produit</Button>
+                    <div className="text-lg font-black text-white pt-2 text-right">Total: {montantTotal.toLocaleString()} FCFA</div>
+                </div>
+            </div>
+            <div className="p-8 pt-0 mt-auto border-t border-white/10 pt-6">
+                <Button type="submit" className="bg-orange-accent text-night font-black h-14 w-full rounded-2xl shadow-xl active:scale-95">Valider la réservation</Button>
+            </div>
           </form>
         </DialogContent>
       </Dialog>

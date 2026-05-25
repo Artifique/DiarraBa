@@ -36,39 +36,34 @@ export const reservationService = {
     });
   },
 
-  async createReservation(data: Prisma.ReservationCreateInput, userId: string): Promise<Reservation> {
-    // Calcul du montant total
-    // IMPORTANT: Le calcul du montant total ici est une simplification.
-    // Il faudrait récupérer les prix unitaires des produits et calculer le total
-    // de manière sécurisée côté serveur pour éviter la fraude.
-    const montantTotal = data.montant_total || 0; 
+  async createReservation(data: any, userId: string): Promise<Reservation> {
+    const { clientNom, clientTel, clientId, ...rest } = data;
 
-    const newReservation = await prisma.reservation.create({
-      data: {
-        client: {
-          connect: {
-            id: (data as any).clientId // Utilisation temporaire du cast pour accéder à clientId
-          }
-        },
-        date_reservation: data.date_reservation,
-        date_finale: data.date_finale,
-        mode_paiement: data.mode_paiement,
-        methode_paiement: data.methode_paiement,
-        montant_total: montantTotal,
-        // Les lignes de réservation (produits) devraient être gérées ici
-        // ou via une transaction si elles sont créées en même temps.
-      },
-    });
+    console.log("DEBUG: Données reçues dans createReservation :", { clientNom, clientTel, clientId, rest });
 
-    await auditService.log({
-      userId: userId,
-      action: "CREATE",
-      entity_type: "Reservation",
-      entity_id: newReservation.id,
-      new_value: newReservation,
-    });
+    try {
+        const newReservation = await prisma.reservation.create({
+          data: {
+            ...rest,
+            clientNom,
+            clientTel,
+            client: clientId ? { connect: { id: clientId } } : undefined,
+          },
+        });
+        
+        await auditService.log({
+          userId: userId,
+          action: "CREATE",
+          entity_type: "Reservation",
+          entity_id: newReservation.id,
+          new_value: newReservation,
+        });
 
-    return newReservation;
+        return newReservation;
+    } catch (error) {
+        console.error("DEBUG: Erreur Prisma lors de la création de la réservation :", error);
+        throw error;
+    }
   },
 
   async updateReservation(id: string, data: Prisma.ReservationUpdateInput, userId: string): Promise<Reservation> {

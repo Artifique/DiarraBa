@@ -1,6 +1,7 @@
 // src/app/actions/data.ts
 "use server"
 
+import prisma from "@/lib/prisma";
 import { 
     categorieService, 
     produitService, 
@@ -35,10 +36,39 @@ export async function getFournisseursAction() { return personneService.getFourni
 export async function getClientsAction() { return personneService.getClients(); }
 
 // Reservation
-export async function getReservationsAction() { return reservationService.getAllReservations(); }
-export async function createReservationAction(data: any, userId: string) { return reservationService.createReservation(data, userId); }
+export async function createReservationAction(data: any, userId: string) {
+    // 1. Trouver ou créer le client par téléphone
+    const tel = data.clientTel;
+    let client = await prisma.personne.findUnique({ where: { telephone: tel } });
+    
+    if (!client) {
+        client = await prisma.personne.create({
+            data: {
+                type: "Client",
+                nom: data.clientNom || null, // Nom optionnel
+                telephone: tel,
+            }
+        });
+    } else if (data.clientNom && !client.nom) {
+        // Mise à jour optionnelle du nom si le client existait sans nom
+        client = await prisma.personne.update({
+            where: { id: client.id },
+            data: { nom: data.clientNom }
+        });
+    }
+    
+    // 2. Préparer les données pour Reservation (sans les champs temporaires)
+    const { clientNom, clientTel, clientId, ...reservationData } = data;
+    
+    // 3. Créer la réservation en utilisant l'ID récupéré ou créé
+    return reservationService.createReservation({
+        ...reservationData,
+        clientId: client.id
+    }, userId);
+}
 export async function addLigneReservationAction(data: any, userId: string) { return reservationService.addLigneReservation(data, userId); }
 export async function deleteReservationAction(id: string, userId: string) { return reservationService.deleteReservation(id, userId); }
+export async function getReservationsAction() { return reservationService.getAllReservations(); }
 
 // Paiement
 export async function createPaiementAction(data: any, userId: string) { return paiementService.createPaiement(data, userId); }

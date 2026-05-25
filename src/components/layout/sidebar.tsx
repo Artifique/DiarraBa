@@ -52,18 +52,19 @@ export function Sidebar() {
       "w-[70px] lg:w-[260px]",
       collapsed ? "lg:w-[70px]" : "lg:w-[260px]"
     )}>
-      <div className={cn("flex h-20 items-center px-4 gap-3", (collapsed) && "justify-center px-0 lg:justify-center")}>
-        <div className="relative h-10 w-10 min-w-[40px] rounded-xl overflow-hidden border border-orange-accent/30 orange-glow">
-          <Image src="/logo.jpeg" alt="Logo" fill className="object-cover" />
+      <div className={cn("flex h-20 items-center px-4 gap-3", (collapsed) && "justify-center px-0 lg:justify-center")} suppressHydrationWarning>
+        <div className="relative h-10 w-10 min-w-[40px] rounded-xl overflow-hidden border border-orange-accent/30 orange-glow" suppressHydrationWarning>
+          <Image src="/logo.jpeg" alt="Logo" fill className="object-cover" sizes="40px" />
         </div>
-        <div className={cn("flex flex-col overflow-hidden lg:flex", (collapsed) ? "hidden" : "hidden lg:flex")}>
+        <div className={cn("flex flex-col overflow-hidden lg:flex", (collapsed) ? "hidden" : "hidden lg:block")} suppressHydrationWarning>
           <span className="text-lg font-display font-bold text-white tracking-wider leading-none">DIARRABA</span>
           <span className="text-[9px] font-bold text-orange-accent tracking-[0.2em] mt-1">VOLAILLES</span>
         </div>
       </div>
 
-      <nav className="flex-1 overflow-y-auto py-4 px-3 custom-scrollbar">
-        <div className="space-y-1">
+      <nav className="flex-1 overflow-y-auto py-4 px-3 custom-scrollbar" suppressHydrationWarning>
+        <div className="space-y-1" suppressHydrationWarning>
+
           {navigation.map((item) => {
             if (item.name === "Utilisateurs" && userRole !== "Admin") return null;
             if (item.group) {
