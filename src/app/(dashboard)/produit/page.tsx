@@ -2,7 +2,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { PlusCircle, Edit, Trash2, Loader2, CheckCircle2, AlertCircle, Box, PackagePlus, Phone, User as UserIcon, Wallet } from "lucide-react";
+import { PlusCircle, Edit, Trash2, Loader2, CheckCircle2, AlertCircle, Box, PackagePlus, Phone, User as UserIcon, Wallet, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
@@ -43,6 +43,8 @@ export default function ProduitPage() {
   
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [selectedCategory, setSelectedCategory] = useState("all");
   const limit = 10;
 
   const form = useForm<ProduitFormValues>({
@@ -184,6 +186,12 @@ export default function ProduitPage() {
     setIsModalOpen(true);
   };
 
+  const filteredProduits = produits.filter((prod: any) => {
+    const matchesSearch = prod.nom.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesCategory = selectedCategory === "all" || prod.categorieId === selectedCategory;
+    return matchesSearch && matchesCategory;
+  });
+
   if (loading) return <div className="flex justify-center items-center h-[calc(100vh-200px)]"><Loader2 className="h-12 w-12 animate-spin text-orange-accent" /></div>;
 
   return (
@@ -198,6 +206,27 @@ export default function ProduitPage() {
         </Button>
       </div>
 
+      <div className="flex flex-col md:flex-row gap-4 bg-white/[0.03] p-4 rounded-2xl border border-white/5">
+        <div className="relative flex-1">
+            <Search className="absolute left-3 top-3.5 h-4 w-4 text-white/30" />
+            <Input 
+                placeholder="Rechercher un produit..." 
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-10 bg-white/5 border-white/10 h-12 rounded-xl"
+            />
+        </div>
+        <Select value={selectedCategory} onValueChange={setSelectedCategory}>
+            <SelectTrigger className="w-full md:w-60 bg-white/5 border-white/10 h-12 rounded-xl">
+                <SelectValue placeholder="Toutes catégories" />
+            </SelectTrigger>
+            <SelectContent className="bg-night border-white/10">
+                <SelectItem value="all">Toutes catégories</SelectItem>
+                {categories.map((cat) => <SelectItem key={cat.id} value={cat.id}>{cat.nomCategorie}</SelectItem>)}
+            </SelectContent>
+        </Select>
+      </div>
+
       <div className="glass-card rounded-2xl overflow-x-auto border border-white/10 shadow-2xl">
         <table className="w-full text-left min-w-[700px]">
           <thead className="bg-white/[0.03] uppercase text-[9px] md:text-[10px] tracking-widest text-muted-foreground/60 font-black border-b border-white/5">
@@ -210,10 +239,10 @@ export default function ProduitPage() {
             </tr>
           </thead>
           <tbody className="divide-y divide-white/5 text-sm">
-            {produits.length === 0 ? (
-              <tr><td colSpan={5} className="p-12 text-center text-muted-foreground/50 italic">Aucun produit trouvé.</td></tr>
+            {filteredProduits.length === 0 ? (
+              <tr><td colSpan={5} className="p-12 text-center text-muted-foreground/50 italic">Aucun produit ne correspond à votre recherche.</td></tr>
             ) : (
-              produits.map((prod: any) => (
+              filteredProduits.map((prod: any) => (
                 <tr key={prod.id} className="group hover:bg-white/[0.02] transition-colors">
                   <td className="p-4 md:p-6"><div className="flex flex-col"><span className="text-white font-bold">{prod.nom}</span><span className="text-[10px] text-muted-foreground uppercase">{prod.categorie?.nomCategorie}</span></div></td>
                   <td className="p-4 md:p-6 text-center">

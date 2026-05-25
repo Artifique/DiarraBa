@@ -3,7 +3,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { PlusCircle, Edit, Trash2, Loader2, CheckCircle2, AlertCircle, Calendar, Phone, Activity, ShoppingBag, CreditCard, ChevronRight, Wallet } from "lucide-react";
+import { PlusCircle, Edit, Trash2, Loader2, CheckCircle2, AlertCircle, Calendar, Phone, Activity, ShoppingBag, CreditCard, ChevronRight, Wallet, DollarSign } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
@@ -221,6 +221,7 @@ export default function EclosionPage() {
                     </span>
                   </td>
                   <td className="p-4 md:p-6 text-right flex justify-end gap-1">
+                    <Button variant="ghost" size="icon" onClick={() => openPaiementModal(e)} className="text-forest-green hover:bg-forest-green/10 rounded-lg"><DollarSign className="h-5 w-5" /></Button>
                     <Button variant="ghost" size="icon" onClick={() => openEditModal(e)} className="text-blue-400 hover:bg-blue-400/10 rounded-lg"><Edit className="h-5 w-5" /></Button>
                     <Button variant="ghost" size="icon" onClick={() => handleDelete(e.id)} className="text-destructive hover:bg-destructive/10 rounded-lg"><Trash2 className="h-5 w-5" /></Button>
                   </td>
@@ -290,6 +291,25 @@ export default function EclosionPage() {
                 <Button type="button" variant="ghost" onClick={() => setIsModalOpen(false)} className="text-white/40 hover:text-white rounded-xl h-12 px-8">Annuler</Button>
                 <Button type="submit" className="bg-orange-accent text-night font-black uppercase tracking-widest hover:bg-orange-accent/90 rounded-xl px-12 h-14 shadow-xl active:scale-95 transition-all">Lancer le cycle</Button>
             </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Modal Paiement */}
+      <Dialog open={isPaiementModalOpen} onOpenChange={setIsPaiementModalOpen}>
+        <DialogContent className="bg-night/95 backdrop-blur-2xl border-white/10 text-white sm:max-w-md rounded-[2.5rem] p-0 overflow-hidden shadow-2xl">
+          <div className="absolute top-0 left-0 w-full h-1.5 bg-gradient-to-r from-forest-green via-emerald-400 to-forest-green opacity-70" />
+          <DialogHeader className="pt-8 px-8"><DialogTitle className="text-2xl font-display font-bold">Paiement Éclosion</DialogTitle></DialogHeader>
+          <form onSubmit={paiementForm.handleSubmit(handlePaiement)} className="p-8 pt-4 space-y-6">
+            <div className="space-y-4">
+              <Label className="text-[10px] font-black text-white/40 uppercase">Montant Service (FCFA)</Label>
+              <Input type="number" {...paiementForm.register("prix", { valueAsNumber: true })} className="bg-white/5 h-12 rounded-xl font-mono text-center text-lg" />
+              <div className="flex items-center gap-3 p-3 bg-white/5 rounded-2xl border border-white/5">
+                <input type="checkbox" {...paiementForm.register("paye")} className="h-5 w-5 rounded-lg border-white/10 bg-white/5 text-forest-green" />
+                <Label className="text-xs font-bold text-white/60">Marquer comme payé</Label>
+              </div>
+            </div>
+            <Button type="submit" className="w-full h-14 bg-forest-green text-white font-black rounded-2xl shadow-xl">Valider Paiement</Button>
           </form>
         </DialogContent>
       </Dialog>
