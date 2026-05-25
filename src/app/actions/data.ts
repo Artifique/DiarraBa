@@ -107,6 +107,7 @@ export async function updateSettingAction(id: string, data: any, userId: string)
 export async function getAllUsersAction(page: number, limit: number) { return userService.getAllUsers(page, limit); }
 export async function countUsersAction() { return userService.countUsers(); }
 export async function createUserAction(data: any) { return userService.createUser(data); }
+export async function updateUserAction(id: string, data: any) { return userService.updateUser(id, data); }
 export async function deleteUserAction(id: string) { return userService.deleteUser(id); }
 export async function updatePasswordAction(id: string, currentPassword: string, newPassword: string) { return userService.updatePassword(id, currentPassword, newPassword); }
 

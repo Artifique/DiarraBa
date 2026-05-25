@@ -105,9 +105,9 @@ export const notificationService = {
       const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
 
       if (diffDays === 10) {
-        await createIfNotExists(userId, "Alerte", `Éclosion #${e.id.slice(0, 8)}: 10ème jour atteint.`, e.id);
+        await createIfNotExists(userId, "Eclosion", `Éclosion client ${e.telephone}: 10ème jour atteint.`, e.id);
       } else if (diffDays === 20) {
-        await createIfNotExists(userId, "Alerte", `Éclosion #${e.id.slice(0, 8)}: 20ème jour, fin du cycle.`, e.id);
+        await createIfNotExists(userId, "Eclosion", `Éclosion client ${e.telephone}: 20ème jour, fin du cycle.`, e.id);
       }
     }
   },

@@ -38,6 +38,7 @@ export function Sidebar() {
 
   useEffect(() => {
     const user = JSON.parse(localStorage.getItem("user") || "{}");
+    console.log("DEBUG Sidebar - Rôle utilisateur:", user.role);
     setUserRole(user.role);
   }, []);
 
@@ -66,7 +67,7 @@ export function Sidebar() {
         <div className="space-y-1" suppressHydrationWarning>
 
           {navigation.map((item) => {
-            if (item.name === "Utilisateurs" && userRole !== "Admin") return null;
+            if (item.name === "Utilisateurs" && userRole?.toLowerCase() !== "admin") return null;
             if (item.group) {
               return (
                 <div key={item.name} className={cn(

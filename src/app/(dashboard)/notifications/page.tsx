@@ -1,47 +1,33 @@
+// src/app/(dashboard)/notifications/page.tsx
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import {
-  Bell, Package, CreditCard, Truck, AlertTriangle, Calendar, CheckCircle2, Trash2, Loader2,
-} from "lucide-react";
-import { cn } from "@/lib/utils";
+import { Bell, AlertTriangle, Calendar, CheckCircle2, Trash2, Loader2, Info } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { getNonLuesAction, markAsReadAction, markAllAsReadAction, deleteNotifAction, checkAndGenerateNotificationsAction } from "../../actions/data";
-import { Notification } from "../../../generated/prisma/index";
-
-const notificationIcons: { [key: string]: { icon: any; color: string; bg: string } } = {
-  Reservation: { icon: Calendar, color: "text-blue-400", bg: "bg-blue-400/10" },
-  Paiement: { icon: CreditCard, color: "text-forest-green", bg: "bg-forest-green/10" },
-  Alerte: { icon: AlertTriangle, color: "text-destructive", bg: "bg-destructive/10" },
-  Livraison: { icon: Truck, color: "text-orange-accent", bg: "bg-orange-accent/10" },
-  Autre: { icon: Bell, color: "text-purple-400", bg: "bg-purple-400/10" },
-  Facture: { icon: Package, color: "text-yellow-400", bg: "bg-yellow-400/10" },
-};
+import { getNonLuesAction, deleteNotifAction, checkAndGenerateNotificationsAction } from "../../actions/data";
+import { cn } from "@/lib/utils";
 
 export default function NotificationsPage() {
+  const [notifications, setNotifications] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [notifications, setNotifications] = useState<Notification[]>([]);
-  const [userId, setUserId] = useState<string | null>(null);
+  const [selectedNotif, setSelectedNotif] = useState<any | null>(null);
 
-  const fetchNotifications = useCallback(async (currentUserId: string) => {
+  const fetchNotifications = useCallback(async (userId: string) => {
     setLoading(true);
-    try {
-      const data = await getNonLuesAction(currentUserId);
-      setNotifications(data);
-    } catch (error) { console.error("Error fetching notifications:", error); }
-    finally { setLoading(false); }
+    const data = await getNonLuesAction(userId);
+    setNotifications(data || []);
+    setLoading(false);
   }, []);
 
   useEffect(() => {
     const init = async () => {
       const storedUser = localStorage.getItem("user");
       const user = storedUser ? JSON.parse(storedUser) : null;
-      const tempUserId = user?.id;
-      if (tempUserId) {
-        setUserId(tempUserId);
-        await checkAndGenerateNotificationsAction(tempUserId); // Force la vérification
-        fetchNotifications(tempUserId);
+      if (user?.id) {
+        await checkAndGenerateNotificationsAction(user.id);
+        fetchNotifications(user.id);
       } else {
         setLoading(false);
       }
@@ -49,60 +35,67 @@ export default function NotificationsPage() {
     init();
   }, [fetchNotifications]);
 
-  const markAsRead = async (id: string) => {
-    if (!userId) return;
-    await markAsReadAction(id);
-    fetchNotifications(userId);
-  };
-
-  const deleteNotif = async (id: string) => {
-    if (!userId) return;
+  const handleDelete = async (id: string) => {
     await deleteNotifAction(id);
-    fetchNotifications(userId);
+    setNotifications(prev => prev.filter(n => n.id !== id));
+    setSelectedNotif(null);
   };
 
-  const markAllAsRead = async () => {
-    if (!userId) return;
-    await markAllAsReadAction(userId);
-    fetchNotifications(userId);
+  const getIcon = (type: string) => {
+    switch(type) {
+      case "Alerte": return { icon: <AlertTriangle className="h-6 w-6" />, color: "text-orange-500", bg: "bg-orange-500/10" };
+      case "Reservation": return { icon: <Calendar className="h-6 w-6" />, color: "text-blue-500", bg: "bg-blue-500/10" };
+      case "Eclosion": return { icon: <CheckCircle2 className="h-6 w-6" />, color: "text-purple-500", bg: "bg-purple-500/10" };
+      default: return { icon: <Bell className="h-6 w-6" />, color: "text-white", bg: "bg-white/10" };
+    }
   };
-
-  if (loading) return <div className="flex justify-center items-center h-[calc(100vh-200px)]"><Loader2 className="h-12 w-12 animate-spin text-orange-accent" /></div>;
 
   return (
-    <div className="max-w-4xl mx-auto space-y-4 md:space-y-6 p-2 md:p-0">
-      <div className="flex items-center justify-between gap-4">
-        <div className="flex items-center gap-3">
-          <div className="h-10 w-10 rounded-xl bg-orange-accent/10 flex items-center justify-center text-orange-accent shrink-0"><Bell className="h-6 w-6" /></div>
-          <div>
-            <h2 className="text-xl md:text-2xl font-display font-bold text-white">Notifications</h2>
-            <p className="text-xs md:text-sm text-muted-foreground">Alertes de stock et activités.</p>
-          </div>
+    <div className="max-w-3xl mx-auto p-6 space-y-8">
+      <h2 className="text-3xl font-display font-bold text-white">Notifications</h2>
+      
+      {loading ? (
+        <div className="flex justify-center pt-20"><Loader2 className="h-10 w-10 animate-spin text-orange-accent" /></div>
+      ) : notifications.length === 0 ? (
+        <div className="text-center pt-20 text-muted-foreground italic">Aucune nouvelle notification.</div>
+      ) : (
+        <div className="space-y-4">
+          <AnimatePresence>
+            {notifications.map((n) => {
+                const { icon, color, bg } = getIcon(n.type);
+                return (
+                    <motion.div 
+                        key={n.id}
+                        initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, x: -20 }}
+                        onClick={() => setSelectedNotif(n)}
+                        className="glass-card p-6 rounded-[2rem] border border-white/10 flex items-center gap-6 cursor-pointer hover:bg-white/[0.03] transition-all"
+                    >
+                        <div className={cn("h-14 w-14 rounded-2xl flex items-center justify-center border border-white/5", bg, color)}>
+                            {icon}
+                        </div>
+                        <div className="flex-1">
+                            <p className="text-white font-bold">{n.message}</p>
+                            <p className="text-xs text-muted-foreground">{new Date(n.date_creation).toLocaleString()}</p>
+                        </div>
+                    </motion.div>
+                );
+            })}
+          </AnimatePresence>
         </div>
-        <button onClick={markAllAsRead} className="text-[10px] md:text-xs font-bold text-orange-accent hover:underline uppercase shrink-0">Tout lire</button>
-      </div>
+      )}
 
-      <div className="space-y-3">
-        <AnimatePresence mode="popLayout">
-          {notifications.length === 0 ? (
-            <div className="text-center py-20 text-muted-foreground italic">Aucune notification.</div>
-          ) : (
-            notifications.map((n) => {
-              const config = notificationIcons[n.type as string] || notificationIcons.Autre;
-              return (
-                <motion.div layout initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} key={n.id} className="glass-card p-3 md:p-4 rounded-2xl flex items-center gap-3 md:gap-4">
-                  <div className={cn("h-10 w-10 md:h-12 md:w-12 rounded-xl flex items-center justify-center shrink-0", config.bg, config.color)}><config.icon className="h-5 w-5 md:h-6 md:w-6" /></div>
-                  <div className="flex-1"><p className="text-xs md:text-sm text-white font-semibold">{n.message}</p></div>
-                  <div className="flex gap-1 md:gap-2 shrink-0">
-                    <Button variant="ghost" size="sm" onClick={() => markAsRead(n.id)} className="h-8 w-8 p-0"><CheckCircle2 className="h-4 w-4 text-forest-green" /></Button>
-                    <Button variant="ghost" size="sm" onClick={() => deleteNotif(n.id)} className="h-8 w-8 p-0"><Trash2 className="h-4 w-4 text-destructive" /></Button>
-                  </div>
-                </motion.div>
-              );
-            })
-          )}
-        </AnimatePresence>
-      </div>
+      <Dialog open={!!selectedNotif} onOpenChange={() => setSelectedNotif(null)}>
+        <DialogContent className="bg-night/95 backdrop-blur-2xl border-white/10 text-white rounded-[2rem] p-8 max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-2xl font-display font-bold text-orange-accent">Détail</DialogTitle>
+          </DialogHeader>
+          <div className="py-6 text-white/90 text-sm leading-relaxed">{selectedNotif?.message}</div>
+          <DialogFooter className="gap-3">
+            <Button variant="ghost" className="rounded-xl" onClick={() => setSelectedNotif(null)}>Fermer</Button>
+            <Button variant="destructive" className="rounded-xl" onClick={() => selectedNotif && handleDelete(selectedNotif.id)}>Supprimer</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
