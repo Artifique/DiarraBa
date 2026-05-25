@@ -19,16 +19,12 @@ type NavItem = {
 const navigation: NavItem[] = [
   { name: "TABLEAU DE BORD", group: true },
   { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
-  { name: "GESTION", group: true },
-  { name: "Clients", href: "/clients", icon: Users },
-  { name: "Fournisseurs", href: "/fournisseurs", icon: Truck },
-  { name: "INVENTAIRE", group: true },
-  { name: "Volailles", href: "/volailles", icon: Bird },
-  { name: "Couveuses", href: "/couveuses", icon: Box },
-  { name: "TRANSACTIONS", group: true },
-  { name: "Réservations", href: "/reservations", icon: CalendarCheck },
-  { name: "Paiements", href: "/paiements", icon: CreditCard },
-  { name: "Factures", href: "/factures", icon: FileText },
+  { name: "GESTION DES STOCKS", group: true },
+  { name: "Catégories", href: "/categorie", icon: Box }, // Utilise Box pour Catégories
+  { name: "Produits", href: "/produit", icon: Bird }, // Utilise Bird pour Produits
+  { name: "OPERATIONS", group: true },
+  { name: "Réservations", href: "/reservation", icon: CalendarCheck },
+  { name: "Éclosions", href: "/eclosion", icon: Users }, // Utilise Users pour Éclosions
   { name: "SYSTÈME", group: true },
   { name: "Notifications", href: "/notifications", icon: Bell },
   { name: "Utilisateurs", href: "/users", icon: Users },

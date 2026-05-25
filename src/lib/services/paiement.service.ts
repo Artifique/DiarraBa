@@ -1,124 +1,82 @@
-// filepath: src/lib/services/paiement.service.ts
-import { createClient } from "@/lib/supabase";
-import { PaiementModel } from "@/lib/models/paiement.model";
-import { ReservationModel } from "@/lib/models/reservation.model";
-import { FactureModel } from "@/lib/models/facture.model";
-import { AuditModel } from "@/lib/models/audit.model";
-import { Paiement, MethodePaiement, StatutPaiement } from "@/types/database";
-
-const supabase = createClient();
-const paiementModel = new PaiementModel(supabase);
-const reservationModel = new ReservationModel(supabase);
-const factureModel = new FactureModel(supabase);
-const auditModel = new AuditModel(supabase);
+// src/lib/services/paiement.service.ts
+import prisma from "@/lib/prisma";
+import { Paiement, Prisma } from "../../generated/prisma/index";
+import { auditService } from "./audit.service"; // Pour les logs d'audit
 
 export const paiementService = {
-  async getAll(): Promise<Paiement[]> {
-    return paiementModel.findAll();
+  async getAllPaiements(): Promise<Paiement[]> {
+    return prisma.paiement.findMany({
+      include: {
+        reservation: true,
+      },
+      orderBy: {
+        date_paiement: "desc",
+      },
+    });
   },
 
-  async getById(id: string): Promise<Paiement | null> {
-    return paiementModel.findById(id);
+  async getPaiementById(id: string): Promise<Paiement | null> {
+    return prisma.paiement.findUnique({
+      where: { id },
+      include: {
+        reservation: true,
+      },
+    });
   },
 
-  async getByReservation(reservationId: string): Promise<Paiement[]> {
-    return paiementModel.findByReservation(reservationId);
-  },
-
-  async create(
-    data: {
-      reservation_id: string;
-      montant: number;
-      methode: MethodePaiement;
-      reference?: string;
-      notes?: string;
-    },
-    managerId: string,
-  ): Promise<Paiement> {
-    // Créer le paiement
-    const paiement = await paiementModel.create({
-      ...data,
-      statut: "Completed" as StatutPaiement,
-      date_paiement: new Date().toISOString(),
-      reference: data.reference || null,
-      notes: data.notes || null,
+  async createPaiement(data: Prisma.PaiementCreateInput, userId: string): Promise<Paiement> {
+    const newPaiement = await prisma.paiement.create({
+      data,
     });
 
-    // Mettre à jour le montant payé dans la facture associée
-    const reservation = await reservationModel.findById(data.reservation_id);
-    if (reservation) {
-      const factures = await factureModel.findByReservation(data.reservation_id);
-      if (factures.length > 0) {
-        const totalPaye = await paiementModel.getTotalPaye(data.reservation_id);
-        const montantRestant = factures[0].montant_total - totalPaye;
-        
-        await factureModel.update(factures[0].id, {
-          montant_paye: totalPaye,
-          montant_restant: montantRestant,
-          statut: montantRestant <= 0 ? "Payee" : "Partielle",
-        });
-      }
-    }
-
-    await auditModel.create({
-      manager_id: managerId,
+    await auditService.log({
+      userId: userId,
       action: "CREATE",
-      entite: "paiements",
-      entite_id: paiement.id,
-      ancienne_valeur: null,
-      nouvelle_valeur: JSON.stringify(paiement),
-      adresse_ip: null,
-      user_agent: null,
-      client_id: null,
-      fournisseur_id: null
+      entity_type: "Paiement",
+      entity_id: newPaiement.id,
+      new_value: newPaiement,
     });
 
-    return paiement;
+    return newPaiement;
   },
 
-  async updateStatut(
-    id: string,
-    statut: StatutPaiement,
-    managerId: string,
-  ): Promise<Paiement> {
-    const oldPaiement = await paiementModel.findById(id);
-    if (!oldPaiement) throw new Error("Paiement non trouvé");
+  async updatePaiement(id: string, data: Prisma.PaiementUpdateInput, userId: string): Promise<Paiement> {
+    const oldPaiement = await prisma.paiement.findUnique({ where: { id } });
+    if (!oldPaiement) throw new Error("Paiement non trouvé.");
 
-    const paiement = await paiementModel.updateStatut(id, statut);
-
-    await auditModel.create({
-      manager_id: managerId,
-      action: "UPDATE_STATUT",
-      entite: "paiements",
-      entite_id: id,
-      ancienne_valeur: JSON.stringify(oldPaiement),
-      nouvelle_valeur: JSON.stringify(paiement),
-      adresse_ip: null,
-      user_agent: null,
-      client_id: null,
-      fournisseur_id: null
+    const updatedPaiement = await prisma.paiement.update({
+      where: { id },
+      data,
     });
 
-    return paiement;
+    await auditService.log({
+      userId: userId,
+      action: "UPDATE",
+      entity_type: "Paiement",
+      entity_id: id,
+      old_value: oldPaiement,
+      new_value: updatedPaiement,
+    });
+
+    return updatedPaiement;
   },
 
-  async delete(id: string, managerId: string): Promise<void> {
-    const oldPaiement = await paiementModel.findById(id);
-    if (!oldPaiement) throw new Error("Paiement non trouvé");
+  async deletePaiement(id: string, userId: string): Promise<Paiement> {
+    const oldPaiement = await prisma.paiement.findUnique({ where: { id } });
+    if (!oldPaiement) throw new Error("Paiement non trouvé.");
 
-    await paiementModel.delete(id);
+    const deletedPaiement = await prisma.paiement.delete({
+      where: { id },
+    });
 
-    await auditModel.create({
-      manager_id: managerId,
+    await auditService.log({
+      userId: userId,
       action: "DELETE",
-      entite: "paiements",
-      entite_id: id,
-      ancienne_valeur: JSON.stringify(oldPaiement),
-      nouvelle_valeur: null,
-      adresse_ip: null,
-      user_agent: null,
-      client_id: null,
-      fournisseur_id: null
+      entity_type: "Paiement",
+      entity_id: id,
+      old_value: oldPaiement,
     });
+
+    return deletedPaiement;
   },
 };

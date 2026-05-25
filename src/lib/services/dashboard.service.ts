@@ -1,109 +1,144 @@
-import { SupabaseClient } from "@supabase/supabase-js";
+import prisma from "@/lib/prisma";
+import { Prisma } from "../../generated/prisma/index"; // Pour accéder aux champs et types de Prisma
 
-export class DashboardService {
-  constructor(private supabase: SupabaseClient) {}
-
+export const dashboardService = {
   async getGlobalStats() {
-    const { data: caData } = await this.supabase
-      .from("paiements")
-      .select("montant")
-      .eq("statut", "Completed");
-    
-    const totalCA = caData?.reduce((acc, curr) => acc + Number(curr.montant), 0) || 0;
+    // Calcul du Chiffre d'affaires
+    const totalCAResult = await prisma.paiement.aggregate({
+      _sum: {
+        montant: true,
+      },
+      where: {
+        // Si vous avez un statut pour les paiements réussis, ajoutez-le ici
+        // statut: "Completed",
+      },
+    });
+    const totalCA = totalCAResult._sum.montant || 0;
 
-    const { count: volaillesCount } = await this.supabase
-      .from("volailles")
-      .select("*", { count: 'exact', head: true })
-      .eq("actif", true);
+    // Nombre de produits disponibles (anciennement volailles)
+    const produitsCount = await prisma.produit.count(); // Pas de champ 'actif' sur Produit dans le schéma actuel
 
-    const { count: reservationsCount } = await this.supabase
-      .from("reservations")
-      .select("*", { count: 'exact', head: true })
-      .in("statut_reservation", ["EnAttente", "Confirmee"]);
+    // Nombre de réservations en cours (statut "EnAttente" ou "Confirmee" si ces statuts existent dans votre logique)
+    const reservationsCount = await prisma.reservation.count({
+      where: {
+        // Statut de réservation basé sur votre logique métier, ici j'assume un champ "statut"
+        // Ou en se basant sur la date_finale
+        date_finale: {
+          gte: new Date(), // Réservations qui ne sont pas encore terminées
+        },
+      },
+    });
 
-    const { data: couveusesData } = await this.supabase
-      .from("v_couveuses_disponibilite")
-      .select("quantite, quantite_disponible");
-    
-    const totalCouveuses = couveusesData?.reduce((acc, curr) => acc + curr.quantite, 0) || 1;
-    const dispoCouveuses = couveusesData?.reduce((acc, curr) => acc + curr.quantite_disponible, 0) || 0;
-    const occupancyRate = Math.round(((totalCouveuses - dispoCouveuses) / totalCouveuses) * 100);
+    // Couveuses actives (maintenant Éclosions en cours)
+    // Cette logique doit être revue selon ce que "couveuses actives" signifie avec le modèle Eclosion
+    // Par exemple, on peut compter les éclosions dont la date de fin est dans le futur
+    const activeEclosionsCount = await prisma.eclosion.count({
+      where: {
+        date_fin_prevue: {
+          gte: new Date(),
+        },
+      },
+    });
+    // L'occupancyRate de l'ancien système est difficilement traduisible directement ici sans plus de contexte.
+    // Je vais le simuler pour l'instant ou le calculer différemment.
+    const occupancyRate = 0; // À revoir selon la logique métier d'éclosion
+
 
     return {
       totalCA,
-      volaillesCount: volaillesCount || 0,
+      produitsCount: produitsCount || 0, // Ancien nom: volaillesCount
       reservationsCount: reservationsCount || 0,
-      occupancyRate
+      occupancyRate,
+      activeEclosionsCount, // Nouvelle stat
     };
-  }
+  },
 
-  async getPoultryDistribution() {
-    const { data, error } = await this.supabase
-      .from("volailles")
-      .select("type, quantite_disponible")
-      .eq("actif", true);
+  async getProductDistribution() { // Ancien nom: getPoultryDistribution
+    const distribution = await prisma.produit.groupBy({
+      by: ["categorieId"],
+      _sum: {
+        quantite: true,
+      },
+      orderBy: {
+        categorieId: "asc",
+      },
+    });
 
-    if (error) throw error;
+    // Pour obtenir le nom de la catégorie, il faudrait inclure la relation ou faire une requête séparée
+    const categories = await prisma.categorie.findMany({
+      select: {
+        id: true,
+        nomCategorie: true,
+      },
+    });
+    const categoryMap = new Map(categories.map(cat => [cat.id, cat.nomCategorie]));
 
-    const distribution = data.reduce((acc: any, curr) => {
-      acc[curr.type] = (acc[curr.type] || 0) + curr.quantite_disponible;
-      return acc;
-    }, {});
-
-    return Object.entries(distribution).map(([name, value]) => ({
-      name,
-      value
+    return distribution.map((item) => ({
+      name: categoryMap.get(item.categorieId) || "Catégorie inconnue",
+      value: item._sum.quantite || 0,
     }));
-  }
+  },
 
   async getRevenueHistory() {
     const sixMonthsAgo = new Date();
     sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
+    sixMonthsAgo.setHours(0, 0, 0, 0);
 
-    const { data, error } = await this.supabase
-      .from("paiements")
-      .select("montant, date_paiement")
-      .eq("statut", "Completed")
-      .gte("date_paiement", sixMonthsAgo.toISOString())
-      .order("date_paiement");
+    const payments = await prisma.paiement.findMany({
+      where: {
+        date_paiement: {
+          gte: sixMonthsAgo,
+        },
+        // Si vous avez un statut pour les paiements réussis, ajoutez-le ici
+        // statut: "Completed",
+      },
+      select: {
+        montant: true,
+        date_paiement: true,
+      },
+      orderBy: {
+        date_paiement: "asc",
+      },
+    });
 
-    if (error) throw error;
-
-    // Group by month
-    const history = data.reduce((acc: any, curr) => {
-      const date = new Date(curr.date_paiement);
-      const month = date.toLocaleString('fr-FR', { month: 'short' });
-      acc[month] = (acc[month] || 0) + Number(curr.montant);
-      return acc;
-    }, {});
+    const history: { [key: string]: number } = {};
+    payments.forEach((p) => {
+      const date = new Date(p.date_paiement);
+      const month = date.toLocaleString("fr-FR", { month: "short" });
+      history[month] = (history[month] || 0) + Number(p.montant);
+    });
 
     return Object.entries(history).map(([name, total]) => ({
       name,
-      total
+      total,
     }));
-  }
+  },
 
   async getRecentActivities() {
-    const { data, error } = await this.supabase
-      .from("reservations")
-      .select(`
-        id,
-        date_reservation,
-        prix_total,
-        statut_reservation,
-        clients (nom)
-      `)
-      .order("date_reservation", { ascending: false })
-      .limit(5);
+    const reservations = await prisma.reservation.findMany({
+      select: {
+        id: true,
+        date_reservation: true,
+        montant_total: true,
+        // statut_reservation: true, // Si vous avez un champ statut_reservation dans Reservation
+        client: {
+          select: {
+            nom: true,
+          },
+        },
+      },
+      orderBy: {
+        date_reservation: "desc",
+      },
+      take: 5,
+    });
 
-    if (error) throw error;
-
-    return data.map((res: any) => ({
+    return reservations.map((res: any) => ({ // Le type `any` est temporaire
       id: res.id,
-      client: res.clients?.nom || "Client inconnu",
+      client: res.client?.nom || "Client inconnu",
       date: res.date_reservation,
-      montant: res.prix_total,
-      statut: res.statut_reservation
+      montant: res.montant_total,
+      statut: "Confirmee", // Placeholder: à adapter avec le vrai statut si existant
     }));
-  }
-}
+  },
+};

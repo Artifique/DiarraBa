@@ -1,43 +1,38 @@
 // filepath: src/lib/services/settings.service.ts
-import { createClient } from "@/lib/supabase";
-import { SettingsModel } from "@/lib/models/settings.model";
-import { AuditModel } from "@/lib/models/audit.model";
-import { Setting } from "@/types/database";
-
-const supabase = createClient();
-const settingsModel = new SettingsModel(supabase);
-const auditModel = new AuditModel(supabase);
+import prisma from "@/lib/prisma";
+import { auditService } from "./audit.service"; // Assurez-vous que c'est le bon chemin pour le service d'audit mis à jour
+import { Setting } from "../../generated/prisma/index"; // Utilise le type généré par Prisma
 
 export const settingsService = {
   async getAllSettings(): Promise<Setting[]> {
-    return settingsModel.findAll();
+    return prisma.setting.findMany();
   },
 
   async getSettingById(id: string): Promise<Setting | null> {
-    return settingsModel.findById(id);
+    return prisma.setting.findUnique({ where: { id } });
   },
 
   async getSettingByKey(key: string): Promise<Setting | null> {
-    return settingsModel.findByKey(key);
+    return prisma.setting.findUnique({ where: { key } });
   },
 
   async createSetting(
-    data: Omit<Setting, "id" | "date_creation" | "date_modification">,
-    managerId: string,
+    data: Omit<Setting, "id" | "date_creation" | "date_modification" | "user">, // 'user' est une relation, pas un champ à créer directement
+    userId: string,
   ): Promise<Setting> {
-    const setting = await settingsModel.create(data);
+    const setting = await prisma.setting.create({
+      data: {
+        ...data,
+        userId: userId,
+      },
+    });
 
-    await auditModel.create({
-      manager_id: managerId,
-      client_id: null,
-      fournisseur_id: null,
+    await auditService.log({
+      userId: userId,
       action: "CREATE",
-      entite: "settings",
-      entite_id: setting.id,
-      ancienne_valeur: null,
-      nouvelle_valeur: JSON.stringify(setting),
-      adresse_ip: null,
-      user_agent: null
+      entity_type: "Setting",
+      entity_id: setting.id,
+      new_value: setting,
     });
 
     return setting;
@@ -45,47 +40,46 @@ export const settingsService = {
 
   async updateSetting(
     id: string,
-    data: Partial<Omit<Setting, "id" | "date_creation" | "date_modification">>,
-    managerId: string,
+    data: Partial<Omit<Setting, "id" | "date_creation" | "date_modification" | "user">>, // 'user' est une relation
+    userId: string,
   ): Promise<Setting> {
-    const oldSetting = await settingsModel.findById(id);
+    const oldSetting = await prisma.setting.findUnique({ where: { id } });
     if (!oldSetting) throw new Error("Paramètre non trouvé");
+    if (oldSetting.userId !== userId) throw new Error("Accès non autorisé à ce paramètre.");
 
-    const setting = await settingsModel.update(id, data);
+    const setting = await prisma.setting.update({
+      where: { id },
+      data: {
+        ...data,
+        userId: userId,
+      },
+    });
 
-    await auditModel.create({
-      manager_id: managerId,
-      client_id: null,
-      fournisseur_id: null,
+    await auditService.log({
+      userId: userId,
       action: "UPDATE",
-      entite: "settings",
-      entite_id: id,
-      ancienne_valeur: JSON.stringify(oldSetting),
-      nouvelle_valeur: JSON.stringify(setting),
-      adresse_ip: null,
-      user_agent: null
+      entity_type: "Setting",
+      entity_id: id,
+      old_value: oldSetting,
+      new_value: setting,
     });
 
     return setting;
   },
 
-  async deleteSetting(id: string, managerId: string): Promise<void> {
-    const oldSetting = await settingsModel.findById(id);
+  async deleteSetting(id: string, userId: string): Promise<void> {
+    const oldSetting = await prisma.setting.findUnique({ where: { id } });
     if (!oldSetting) throw new Error("Paramètre non trouvé");
+    if (oldSetting.userId !== userId) throw new Error("Accès non autorisé à ce paramètre.");
 
-    await settingsModel.delete(id);
+    await prisma.setting.delete({ where: { id } });
 
-    await auditModel.create({
-      manager_id: managerId,
-      client_id: null,
-      fournisseur_id: null,
+    await auditService.log({
+      userId: userId,
       action: "DELETE",
-      entite: "settings",
-      entite_id: id,
-      ancienne_valeur: JSON.stringify(oldSetting),
-      nouvelle_valeur: null,
-      adresse_ip: null,
-      user_agent: null
+      entity_type: "Setting",
+      entity_id: id,
+      old_value: oldSetting,
     });
   },
 };

@@ -1,124 +1,158 @@
 // filepath: src/lib/services/notification.service.ts
-import { createClient } from "@/lib/supabase";
-import { NotificationModel } from "../models/notification.model";
-import { Notification, NotificationType } from "@/types/database";
-
-const supabase = createClient();
-const notificationModel = new NotificationModel(supabase);
+import prisma from "@/lib/prisma";
+import { Notification, Reservation, Facture, Produit } from "../../generated/prisma/index";
 
 // Fonction utilitaire interne pour le module
-async function createIfNotExists(managerId: string, type: NotificationType, message: string) {
-  const { data: existing } = await supabase
-    .from("notifications")
-    .select("id")
-    .eq("manager_id", managerId)
-    .eq("message", message)
-    .eq("lue", false)
-    .limit(1);
-
-  if (!existing || existing.length === 0) {
-    await notificationModel.create({
-      manager_id: managerId,
-      type,
+async function createIfNotExists(userId: string, type: string, message: string, entity_id?: string) {
+  const existing = await prisma.notification.findFirst({
+    where: {
+      userId,
       message,
-      lue: false,
-      client_id: null,
-      fournisseur_id: null
+      read: false,
+      type,
+      entity_id,
+    },
+  });
+
+  if (!existing) {
+    await prisma.notification.create({
+      data: {
+        userId,
+        type,
+        message,
+        read: false,
+        entity_id,
+      },
     });
   }
 }
 
 export const notificationService = {
   async getAll(): Promise<Notification[]> {
-    return notificationModel.findAll();
+    return prisma.notification.findMany();
   },
 
-  async getNonLues(managerId?: string): Promise<Notification[]> {
-    return notificationModel.findNonLues(managerId);
+  async getNonLues(userId?: string): Promise<Notification[]> {
+    return prisma.notification.findMany({
+      where: {
+        userId,
+        read: false,
+      },
+    });
   },
 
   async markAsRead(id: string): Promise<Notification> {
-    return notificationModel.markAsRead(id);
+    return prisma.notification.update({
+      where: { id },
+      data: { read: true },
+    });
   },
 
-  async markAllAsRead(managerId: string): Promise<void> {
-    return notificationModel.markAllAsRead(managerId);
+  async markAllAsRead(userId: string): Promise<void> {
+    await prisma.notification.updateMany({
+      where: { userId, read: false },
+      data: { read: true },
+    });
   },
 
   async delete(id: string): Promise<void> {
-    return notificationModel.delete(id);
+    await prisma.notification.delete({ where: { id } });
   },
 
-  // Méthodes originales de génération de notifications
-  async checkAndGenerateNotifications(managerId: string) {
-    const today = new Date().toISOString().split('T')[0];
+  async checkAndGenerateNotifications(userId: string) {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0); // Pour comparer uniquement la date
 
     // Récupérer le seuil de stock faible
-    const { data: thresholdSetting } = await supabase
-      .from("settings")
-      .select("value")
-      .eq("key", "low_stock_threshold")
-      .single();
-    
+    const thresholdSetting = await prisma.setting.findUnique({
+      where: { key: "low_stock_threshold" },
+    });
     const threshold = thresholdSetting ? Number(thresholdSetting.value) : 5;
 
-    // 1. Vérifier les réservations arrivant à échéance aujourd'hui
-    const { data: reservations } = await supabase
-      .from("reservations")
-      .select("id, date_reservation, clients(nom)")
-      .eq("statut_reservation", "EnAttente")
-      .lte("date_reservation", today);
+    // 1. Vérifier les réservations arrivant à échéance aujourd'hui ou passées
+    const reservations = await prisma.reservation.findMany({
+      where: {
+        date_finale: {
+          lte: today, // date_finale est égale ou antérieure à aujourd'hui
+        },
+        // Ajoutez ici d'autres critères si nécessaire (ex: statut "EnAttente")
+      },
+      include: {
+        client: true, // Inclure les infos du client
+      },
+    });
 
-    if (reservations) {
-      for (const res of reservations) {
-        const clientNom = Array.isArray(res.clients) ? res.clients[0]?.nom : (res.clients as any)?.nom;
-        const message = `La réservation #${res.id.slice(0, 8)} pour ${clientNom || "Client inconnu"} est arrivée à date.`;
-        await createIfNotExists(managerId, 'Reservation', message);
-      }
+    for (const res of reservations) {
+      const clientNom = res.client?.nom || "Client inconnu";
+      const message = `La réservation #${res.id.slice(0, 8)} pour ${clientNom} est arrivée à date.`;
+      await createIfNotExists(userId, "Reservation", message, res.id);
     }
 
-    // 2. Vérifier les stocks de volailles
-    const { data: volailles } = await supabase
-      .from("volailles")
-      .select("id, type, quantite_disponible")
-      .eq("actif", true)
-      .lte("quantite_disponible", threshold);
+    // 2. Vérifier les stocks de produits
+    const produits = await prisma.produit.findMany({
+      where: {
+        quantite: {
+          lte: threshold,
+        },
+      },
+      select: {
+        id: true,
+        nom: true,
+        quantite: true,
+      },
+    });
 
-    if (volailles) {
-      for (const v of volailles) {
-        const message = `Stock faible pour les ${v.type} : seulement ${v.quantite_disponible} restants.`;
-        await createIfNotExists(managerId, 'Alerte', message);
-      }
+    for (const prod of produits) {
+      const message = `Stock faible pour le produit "${prod.nom}" : seulement ${prod.quantite} restants.`;
+      await createIfNotExists(userId, "Alerte", message, prod.id);
     }
 
-    // 3. Vérifier les stocks de couveuses
-    const { data: couveuses } = await supabase
-      .from("couveuses")
-      .select("id, modele, quantite")
-      .eq("actif", true)
-      .lte("quantite", threshold);
+    // 3. Vérifier les éclosions (10e et 20e jour)
+    const eclosions = await prisma.eclosion.findMany({
+      where: {
+        date_debut: {
+          lte: today,
+        },
+      },
+    });
 
-    if (couveuses) {
-      for (const c of couveuses) {
-        const message = `Stock faible pour la couveuse ${c.modele} : seulement ${c.quantite} en inventaire.`;
-        await createIfNotExists(managerId, 'Alerte', message);
+    for (const eclosion of eclosions) {
+      const diffTime = Math.abs(today.getTime() - eclosion.date_debut.getTime());
+      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+      if (diffDays === 10) {
+        const message = `Rappel: C'est le 10ème jour de l'éclosion #${eclosion.id.slice(0, 8)}.`;
+        await createIfNotExists(userId, "Alerte", message, eclosion.id);
+      } else if (diffDays === 20) {
+        const message = `Alerte: C'est le 20ème et dernier jour de l'éclosion #${eclosion.id.slice(0, 8)}.`;
+        await createIfNotExists(userId, "Alerte", message, eclosion.id);
       }
     }
 
     // 4. Vérifier les factures impayées ou en retard
-    const { data: factures } = await supabase
-      .from("factures")
-      .select("id, date_facture, montant_total, montant_paye, reservations(clients(nom))")
-      .lte("date_facture", today);
+    const factures = await prisma.facture.findMany({
+      where: {
+        date_facture: {
+          lte: today,
+        },
+        montant_paye: {
+          lt: prisma.facture.fields.montant_total, // montant_paye est inférieur au montant_total
+        },
+      },
+      include: {
+        reservation: {
+          include: {
+            client: true, // Inclure le client via la réservation
+          },
+        },
+      },
+    });
 
-    if (factures) {
-      for (const fac of factures) {
-        if (fac.montant_paye < fac.montant_total) {
-          const resData: any = fac.reservations;
-          const clientNom = Array.isArray(resData?.clients) ? resData.clients[0]?.nom : resData?.clients?.nom;
-          const message = `La facture #${fac.id.slice(0, 8)} pour ${clientNom || "Client inconnu"} n'est pas encore totalement réglée.`;
-          await createIfNotExists(managerId, 'Paiement', message);
-        }
+    for (const fac of factures) {
+      if (fac.montant_paye < fac.montant_total) {
+        const clientNom = fac.reservation?.client?.nom || "Client inconnu";
+        const message = `La facture #${fac.id.slice(0, 8)} pour ${clientNom} n'est pas encore totalement réglée.`;
+        await createIfNotExists(userId, "Paiement", message, fac.id);
       }
     }
   },

@@ -1,103 +1,90 @@
-// filepath: src/lib/services/facture.service.ts
-import { createClient } from "@/lib/supabase";
-import { FactureModel } from "@/lib/models/facture.model";
-import { AuditModel } from "@/lib/models/audit.model";
-import { NotificationModel } from "@/lib/models/notification.model"; // Ajouté
-import { Facture, StatutFacture } from "@/types/database";
-
-const supabase = createClient();
-const factureModel = new FactureModel(supabase);
-const auditModel = new AuditModel(supabase);
-const notificationModel = new NotificationModel(supabase); // Ajouté
+// src/lib/services/facture.service.ts
+import prisma from "@/lib/prisma";
+import { Facture, Prisma } from "../../generated/prisma/index";
+import { auditService } from "./audit.service"; // Pour les logs d'audit
 
 export const factureService = {
-  async getAll(): Promise<Facture[]> {
-    return factureModel.findAll();
+  async getAllFactures(): Promise<Facture[]> {
+    return prisma.facture.findMany({
+      include: {
+        reservation: {
+          include: {
+            client: true, // Inclure les infos du client via la réservation
+          },
+        },
+      },
+      orderBy: {
+        date_facture: "desc",
+      },
+    });
   },
 
-  async getById(id: string): Promise<Facture | null> {
-    return factureModel.findById(id);
+  async getFactureById(id: string): Promise<Facture | null> {
+    return prisma.facture.findUnique({
+      where: { id },
+      include: {
+        reservation: {
+          include: {
+            client: true,
+          },
+        },
+      },
+    });
   },
 
-  async getByReservation(reservationId: string): Promise<Facture[]> {
-    return factureModel.findByReservation(reservationId);
-  },
+  async createFacture(data: Prisma.FactureCreateInput, userId: string): Promise<Facture> {
+    const newFacture = await prisma.facture.create({
+      data,
+    });
 
-  async create(
-    data: Omit<Facture, "id" | "date_modification">,
-    managerId: string,
-  ): Promise<Facture> {
-    const facture = await factureModel.create(data);
-
-    await auditModel.create({
-      manager_id: managerId,
+    await auditService.log({
+      userId: userId,
       action: "CREATE",
-      entite: "factures",
-      entite_id: facture.id,
-      ancienne_valeur: null,
-      nouvelle_valeur: JSON.stringify(facture),
-      adresse_ip: null,
-      user_agent: null,
-      client_id: null,
-      fournisseur_id: null
+      entity_type: "Facture",
+      entity_id: newFacture.id,
+      new_value: newFacture,
     });
 
-    return facture;
+    return newFacture;
   },
 
-  async updateStatut(
-    id: string,
-    statut: StatutFacture,
-    managerId: string,
-  ): Promise<Facture> {
-    const oldFacture = await factureModel.findById(id);
-    if (!oldFacture) throw new Error("Facture non trouvée");
+  async updateFacture(id: string, data: Prisma.FactureUpdateInput, userId: string): Promise<Facture> {
+    const oldFacture = await prisma.facture.findUnique({ where: { id } });
+    if (!oldFacture) throw new Error("Facture non trouvée.");
 
-    const facture = await factureModel.updateStatut(id, statut);
-
-    // Créer une notification pour le changement de statut de la facture
-    await notificationModel.create({
-      manager_id: managerId,
-      client_id: null, // Dépendra si on peut récupérer le client de la facture
-      fournisseur_id: null,
-      type: "Facture", // Nouveau type de notification
-      message: `Statut de la facture ${facture.numero} mis à jour : ${oldFacture.statut} -> ${facture.statut}`,
-      lue: false,
+    const updatedFacture = await prisma.facture.update({
+      where: { id },
+      data,
     });
 
-    await auditModel.create({
-      manager_id: managerId,
-      action: "UPDATE_STATUT",
-      entite: "factures",
-      entite_id: id,
-      ancienne_valeur: JSON.stringify(oldFacture),
-      nouvelle_valeur: JSON.stringify(facture),
-      adresse_ip: null,
-      user_agent: null,
-      client_id: null,
-      fournisseur_id: null
+    await auditService.log({
+      userId: userId,
+      action: "UPDATE",
+      entity_type: "Facture",
+      entity_id: id,
+      old_value: oldFacture,
+      new_value: updatedFacture,
     });
 
-    return facture;
+    return updatedFacture;
   },
 
-  async delete(id: string, managerId: string): Promise<void> {
-    const oldFacture = await factureModel.findById(id);
-    if (!oldFacture) throw new Error("Facture non trouvée");
+  async deleteFacture(id: string, userId: string): Promise<Facture> {
+    const oldFacture = await prisma.facture.findUnique({ where: { id } });
+    if (!oldFacture) throw new Error("Facture non trouvée.");
 
-    await factureModel.delete(id);
+    const deletedFacture = await prisma.facture.delete({
+      where: { id },
+    });
 
-    await auditModel.create({
-      manager_id: managerId,
+    await auditService.log({
+      userId: userId,
       action: "DELETE",
-      entite: "factures",
-      entite_id: id,
-      ancienne_valeur: JSON.stringify(oldFacture),
-      nouvelle_valeur: null,
-      adresse_ip: null,
-      user_agent: null,
-      client_id: null,
-      fournisseur_id: null
+      entity_type: "Facture",
+      entity_id: id,
+      old_value: oldFacture,
     });
+
+    return deletedFacture;
   },
 };

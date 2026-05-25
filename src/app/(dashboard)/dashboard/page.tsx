@@ -11,24 +11,12 @@ import {
   ArrowDownRight,
   LucideIcon
 } from "lucide-react";
-import { 
-  AreaChart, 
-  Area, 
-  XAxis, 
-  YAxis, 
-  CartesianGrid, 
-  Tooltip, 
-  ResponsiveContainer,
-  PieChart,
-  Pie,
-  Cell,
-  Legend
-} from "recharts";
-import { createClient } from "@/lib/supabase";
-import { DashboardService } from "@/lib/services/dashboard.service";
-import { notificationService } from "@/lib/services";
-import { ManagerModel } from "@/lib/models/manager.model";
 import { cn } from "@/lib/utils";
+import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from "recharts";
+import { 
+  getDashboardDataAction,
+  checkAndGenerateNotificationsAction 
+} from "../../actions/data";
 
 type Stat = {
   name: string;
@@ -65,35 +53,29 @@ export default function DashboardPage() {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const supabase = createClient();
-        const service = new DashboardService(supabase);
-        const managerModel = new ManagerModel(supabase);
+        const storedUser = localStorage.getItem("user");
+        const user = storedUser ? JSON.parse(storedUser) : null;
+        const userId = user?.id;
 
-        const [globalStats, distribution, history, recent, managerData] = await Promise.all([
-          service.getGlobalStats(),
-          service.getPoultryDistribution(),
-          service.getRevenueHistory(),
-          service.getRecentActivities(),
-          managerModel.findFirst()
-        ]);
+        const { globalStats, distribution, history, recentActivities } = await getDashboardDataAction();
 
-        if (managerData) {
-          await notificationService.checkAndGenerateNotifications(managerData.id);
+        if (userId) {
+          await checkAndGenerateNotificationsAction(userId);
         }
 
         setStats([
           {
             name: "Chiffre d'affaires",
             value: `${globalStats.totalCA.toLocaleString()} FCFA`,
-            trend: "+12.5%", // Mock trend for now
+            trend: "+12.5%", 
             trendUp: true,
             icon: TrendingUp,
             color: "text-orange-accent",
             bg: "bg-orange-accent/10",
           },
           {
-            name: "Volailles disponibles",
-            value: globalStats.volaillesCount,
+            name: "Produits disponibles",
+            value: globalStats.produitsCount,
             trend: "+5.2%",
             trendUp: true,
             icon: Bird,
@@ -101,7 +83,7 @@ export default function DashboardPage() {
             bg: "bg-forest-green/10",
           },
           {
-            name: "Réservations en cours",
+            name: "Réservations actives",
             value: globalStats.reservationsCount,
             trend: "-2.4%",
             trendUp: false,
@@ -110,8 +92,8 @@ export default function DashboardPage() {
             bg: "bg-blue-400/10",
           },
           {
-            name: "Couveuses actives",
-            value: `${globalStats.occupancyRate}%`,
+            name: "Éclosions actives",
+            value: globalStats.activeEclosionsCount,
             trend: "+4.1%",
             trendUp: true,
             icon: Activity,
@@ -122,7 +104,7 @@ export default function DashboardPage() {
 
         setDistributionData(distribution);
         setRevenueData(history);
-        setActivities(recent);
+        setActivities(recentActivities);
       } catch (error) {
         console.error("Error loading dashboard data:", error);
       } finally {
@@ -142,12 +124,12 @@ export default function DashboardPage() {
   }
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-4 md:space-y-8 p-2 md:p-0">
       <motion.div 
         variants={container}
         initial="hidden"
         animate="show"
-        className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6"
+        className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6"
       >
         {stats.map((stat) => (
           <motion.div 
