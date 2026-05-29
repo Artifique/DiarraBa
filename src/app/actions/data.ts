@@ -72,7 +72,16 @@ export async function deleteReservationAction(id: string, userId: string) { retu
 export async function getReservationsAction() { return reservationService.getAllReservations(); }
 
 // Paiement
-export async function createPaiementAction(data: any, userId: string) { return paiementService.createPaiement(data, userId); }
+export async function createPaiementAction(data: any, userId: string) {
+    console.log("DEBUG: Données de paiement reçues :", data);
+    try {
+        const result = await paiementService.createPaiement(data, userId);
+        return result;
+    } catch (e) {
+        console.error("DEBUG: Erreur dans paiementService :", e);
+        throw e;
+    }
+}
 
 // Facture
 export async function createFactureAction(data: any, userId: string) { return factureService.createFacture(data, userId); }

@@ -50,6 +50,15 @@ export default function NotificationsPage() {
     }
   };
 
+  const getLink = (type: string) => {
+      switch(type) {
+          case "Alerte": return "/produit";
+          case "Reservation": return "/reservation";
+          case "Eclosion": return "/eclosion";
+          default: return "#";
+      }
+  };
+
   return (
     <div className="max-w-3xl mx-auto p-6 space-y-8">
       <h2 className="text-3xl font-display font-bold text-white">Notifications</h2>
@@ -84,15 +93,18 @@ export default function NotificationsPage() {
         </div>
       )}
 
+      {/* Modal Détails */}
       <Dialog open={!!selectedNotif} onOpenChange={() => setSelectedNotif(null)}>
-        <DialogContent className="bg-night/95 backdrop-blur-2xl border-white/10 text-white rounded-[2rem] p-8 max-w-md">
+        <DialogContent className="bg-night/95 backdrop-blur-2xl border-white/10 text-white rounded-[2.5rem] p-8 max-w-sm">
           <DialogHeader>
             <DialogTitle className="text-2xl font-display font-bold text-orange-accent">Détail</DialogTitle>
           </DialogHeader>
           <div className="py-6 text-white/90 text-sm leading-relaxed">{selectedNotif?.message}</div>
-          <DialogFooter className="gap-3">
-            <Button variant="ghost" className="rounded-xl" onClick={() => setSelectedNotif(null)}>Fermer</Button>
-            <Button variant="destructive" className="rounded-xl" onClick={() => selectedNotif && handleDelete(selectedNotif.id)}>Supprimer</Button>
+          <DialogFooter className="gap-3 flex-col sm:flex-row">
+            <Button variant="outline" className="rounded-xl flex-1" onClick={() => {
+                window.location.href = getLink(selectedNotif?.type || "");
+            }}>Aller à la ressource</Button>
+            <Button variant="destructive" className="rounded-xl flex-1" onClick={() => selectedNotif && handleDelete(selectedNotif.id)}>Supprimer</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

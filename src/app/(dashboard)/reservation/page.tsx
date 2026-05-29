@@ -222,18 +222,24 @@ export default function ReservationPage() {
   const onPaiementSubmit = async (values: PaiementFormValues) => {
     if (!selectedReservationForPaiement || !currentUserId) return;
     try {
-      await createPaiementAction({
-        reservation: { connect: { id: selectedReservationForPaiement.id } },
+      const payload: Prisma.PaiementCreateInput = {
         montant: values.montant,
         mode_paiement: values.mode || null,
-      }, currentUserId);
-      setShowSuccess(true); setIsPaiementModalOpen(false); resetPaiement(); fetchData();
+        reservation: { connect: { id: selectedReservationForPaiement.id } }
+      };
+
+      await createPaiementAction(payload, currentUserId);
+      setShowSuccess(true); 
+      setIsPaiementModalOpen(false); 
+      resetPaiement(); 
+      fetchData();
     } catch (e: any) { 
         console.error("Erreur paiement:", e);
         setErrorMessage(e.message || "Erreur lors du paiement."); 
         setShowError(true); 
     }
   };
+
 
   const generateInvoice = async (reservation: PrismaReservation) => {
     if (!currentUserId) {
@@ -401,7 +407,7 @@ export default function ReservationPage() {
         <DialogContent className="bg-night/95 backdrop-blur-2xl border-white/10 text-white sm:max-w-md rounded-[2.5rem] p-0 overflow-hidden shadow-2xl">
           <div className="absolute top-0 left-0 w-full h-1.5 bg-gradient-to-r from-forest-green via-emerald-400 to-forest-green opacity-70" />
           <DialogHeader className="pt-8 px-8"><DialogTitle className="text-2xl font-display font-bold">Nouveau Paiement</DialogTitle></DialogHeader>
-          <form onSubmit={handlePaiementSubmit(onPaiementSubmit)} className="p-8 pt-4 space-y-6">
+          <form onSubmit={paiementForm.handleSubmit(onPaiementSubmit)} className="p-8 pt-4 space-y-6">
             <div className="bg-white/[0.02] p-4 rounded-2xl border border-white/5 text-center">
                 <p className="text-xs text-white/40 font-black uppercase">Solde à régler</p>
                 <p className="text-3xl font-mono font-black text-forest-green">{paiementForm.watch("montant")?.toLocaleString()} FCFA</p>
