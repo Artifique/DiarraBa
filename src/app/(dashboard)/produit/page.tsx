@@ -15,6 +15,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { cn } from "@/lib/utils";
 import { Pagination } from "@/components/ui/pagination"; 
+
 const formSchema = z.object({
   nom: z.string().min(1, "Le nom est requis."),
   prix_achat: z.number().nullable().optional(),
@@ -27,7 +28,6 @@ const formSchema = z.object({
 });
 
 type ProduitFormValues = z.infer<typeof formSchema>;
-
 
 export default function ProduitPage() {
   const [produits, setProduits] = useState<PrismaProduit[]>([]);
@@ -66,7 +66,6 @@ export default function ProduitPage() {
   const typedNom = watch("newFournisseurNom");
   const typedTel = watch("newFournisseurTel");
 
-  // Remplissage automatique consolidé (un seul useEffect pour la stabilité)
   useEffect(() => {
     if (typedNom && !typedTel) {
         const found = fournisseurs.find(f => f.nom?.toLowerCase() === typedNom.toLowerCase());
@@ -78,7 +77,6 @@ export default function ProduitPage() {
   }, [typedNom, typedTel, fournisseurs, setValue]);
 
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
-
   useEffect(() => {
     const storedUser = localStorage.getItem("user");
     if (storedUser) {
@@ -111,41 +109,39 @@ export default function ProduitPage() {
   useEffect(() => { fetchData(currentPage); }, [fetchData, currentPage]);
 
   const onPageChange = (page: number) => { setCurrentPage(page); };
-const onSubmit = async (values: ProduitFormValues) => {
-  if (!currentUserId) {
-      setErrorMessage("Utilisateur non authentifié.");
-      setShowError(true);
-      return;
-  }
-  try {
-    const payload: any = {
-      nom: values.nom,
-      prix_achat: values.prix_achat,
-      quantite: values.quantite,
-      prix_unitaire: values.prix_unitaire,
-      categorie: { connect: { id: values.categorieId } },
-      fournisseurId: values.fournisseurId === "null" ? null : values.fournisseurId,
-      fournisseurInfo: {
-        nom: values.newFournisseurNom || null,
-        telephone: values.newFournisseurTel
-      }
-    };
 
-    if (editingProduit) {
-      await updateProduitAction(editingProduit.id, payload, currentUserId);
-    } else {
-      await createProduitAction(payload, currentUserId);
+  const onSubmit = async (values: ProduitFormValues) => {
+    if (!currentUserId) {
+        setErrorMessage("Utilisateur non authentifié.");
+        setShowError(true);
+        return;
     }
-    setShowSuccess(true);
-    setIsModalOpen(false);
-    reset();
-    fetchData(currentPage);
-  } catch (e: any) {
-    setErrorMessage(e.message || "Erreur d'enregistrement.");
-    setShowError(true);
-  }
-};
+    try {
+      const payload = {
+          nom: values.nom,
+          prix_achat: values.prix_achat !== null && values.prix_achat !== undefined ? values.prix_achat : null,
+          quantite: values.quantite || 0,
+          prix_unitaire: values.prix_unitaire || 0,
+          categorieId: values.categorieId,
+          fournisseurId: values.fournisseurId && values.fournisseurId !== "null" ? values.fournisseurId : null,
+          fournisseurInfo: {
+              nom: values.newFournisseurNom && values.newFournisseurNom.trim() !== "" ? values.newFournisseurNom : null,
+              telephone: values.newFournisseurTel
+          }
+      };
 
+      if (editingProduit) await updateProduitAction(editingProduit.id, payload, currentUserId);
+      else await createProduitAction(payload, currentUserId);
+
+      setShowSuccess(true);
+      setIsModalOpen(false);
+      reset();
+      fetchData(currentPage);
+    } catch (e: any) {
+      setErrorMessage(e.message || "Erreur d'enregistrement.");
+      setShowError(true);
+    }
+  };
 
   const handleDelete = async (id: string) => {
     if (!currentUserId) {
@@ -226,12 +222,7 @@ const onSubmit = async (values: ProduitFormValues) => {
       <div className="flex flex-col md:flex-row gap-4 bg-white/[0.03] p-4 rounded-2xl border border-white/5">
         <div className="relative flex-1">
             <Search className="absolute left-3 top-3.5 h-4 w-4 text-white/30" />
-            <Input 
-                placeholder="Rechercher un produit..." 
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-10 bg-white/5 border-white/10 h-12 rounded-xl"
-            />
+            <Input placeholder="Rechercher un produit..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="pl-10 bg-white/5 border-white/10 h-12 rounded-xl" />
         </div>
         <Select value={selectedCategory} onValueChange={setSelectedCategory}>
             <SelectTrigger className="w-full md:w-60 bg-white/5 border-white/10 h-12 rounded-xl">
@@ -257,16 +248,12 @@ const onSubmit = async (values: ProduitFormValues) => {
           </thead>
           <tbody className="divide-y divide-white/5 text-sm">
             {filteredProduits.length === 0 ? (
-              <tr><td colSpan={5} className="p-12 text-center text-muted-foreground/50 italic">Aucun produit ne correspond à votre recherche.</td></tr>
+              <tr><td colSpan={5} className="p-12 text-center text-muted-foreground/50 italic">Aucun produit trouvé.</td></tr>
             ) : (
               filteredProduits.map((prod: any) => (
                 <tr key={prod.id} className="group hover:bg-white/[0.02] transition-colors">
                   <td className="p-4 md:p-6"><div className="flex flex-col"><span className="text-white font-bold">{prod.nom}</span><span className="text-[10px] text-muted-foreground uppercase">{prod.categorie?.nomCategorie}</span></div></td>
-                  <td className="p-4 md:p-6 text-center">
-                    {prod.fournisseur ? (
-                        <div className="flex flex-col"><span className="text-white/90">{prod.fournisseur.nom || "Indéfini"}</span><span className="text-[10px] text-orange-accent/70 font-mono">{prod.fournisseur.telephone}</span></div>
-                    ) : "---"}
-                  </td>
+                  <td className="p-4 md:p-6 text-center">{prod.fournisseur ? <div className="flex flex-col"><span className="text-white/90">{prod.fournisseur.nom || "Indéfini"}</span><span className="text-[10px] text-orange-accent/70 font-mono">{prod.fournisseur.telephone}</span></div> : "---"}</td>
                   <td className="p-4 md:p-6 text-center"><span className={cn("font-mono font-bold px-3 py-1 rounded-full text-xs border", prod.quantite <= 5 ? "bg-destructive/10 text-destructive border-destructive/20" : "bg-forest-green/10 text-forest-green border-forest-green/20")}>{prod.quantite}</span></td>
                   <td className="p-4 md:p-6 text-white font-mono font-bold">{prod.prix_unitaire.toLocaleString()} FCFA</td>
                   <td className="p-4 md:p-6 text-right flex justify-end gap-1">
@@ -281,97 +268,34 @@ const onSubmit = async (values: ProduitFormValues) => {
         </table>
       </div>
 
-      <Pagination currentPage={currentPage} totalPages={totalPages} onPageChange={onPageChange} className="mt-6" />
-
       <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
-        <DialogContent className="bg-night/95 backdrop-blur-2xl border-white/10 text-white sm:max-w-4xl rounded-[2rem] p-0 overflow-hidden shadow-2xl">
+        <DialogContent className="bg-night/95 backdrop-blur-2xl border-white/10 text-white sm:max-w-4xl rounded-[2rem] p-0 overflow-hidden shadow-2xl flex flex-col max-h-[90vh]">
           <div className="absolute top-0 left-0 w-full h-1.5 bg-gradient-to-r from-orange-accent via-yellow-500 to-orange-accent opacity-70" />
-          <DialogHeader className="pt-8 px-8">
-            <DialogTitle className="text-3xl font-display font-bold">{editingProduit ? "Édition" : "Nouveau"} Produit</DialogTitle>
-            <DialogDescription className="text-muted-foreground/60 text-xs">Seuls les champs marqués * sont obligatoires.</DialogDescription>
-          </DialogHeader>
-
-          <form onSubmit={handleSubmit(onSubmit)} className="p-8 pt-4 space-y-8">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
-                <div className="space-y-6">
-                    <div className="flex items-center gap-2 pb-2 border-b border-white/5"><Box className="h-4 w-4 text-orange-accent" /><h3 className="text-orange-accent text-[11px] font-black uppercase tracking-widest">Informations Article</h3></div>
-                    <div className="space-y-2">
-                        <Label className="text-[10px] font-black text-white/40 uppercase">Désignation *</Label>
-                        <Input placeholder="Ex: Poussin chair" {...register("nom")} className="bg-white/[0.03] border-white/10 h-12 rounded-xl" />
-                        {errors.nom && <p className="text-destructive text-[10px] font-bold italic">{errors.nom.message}</p>}
-                    </div>
-                    <div className="space-y-2">
-                        <Label className="text-[10px] font-black text-white/40 uppercase">Catégorie *</Label>
-                        <Select onValueChange={(v) => setValue("categorieId", v)} value={watch("categorieId")}>
-                            <SelectTrigger className="bg-white/[0.03] border-white/10 h-12 rounded-xl text-sm"><SelectValue placeholder="Choisir..." /></SelectTrigger>
-                            <SelectContent className="bg-night border-white/10">{categories.map((c) => <SelectItem key={c.id} value={c.id}>{c.nomCategorie}</SelectItem>)}</SelectContent>
-                        </Select>
-                        {errors.categorieId && <p className="text-destructive text-[10px] font-bold italic">{errors.categorieId.message}</p>}
-                    </div>
-                    <div className="grid grid-cols-2 gap-4">
-                        <div className="space-y-2">
-                            <Label className="text-[10px] font-black text-white/40 uppercase">Prix d'Achat (Opt.)</Label>
-                            <Input type="number" step="0.01" {...register("prix_achat")} className="bg-white/[0.03] border-white/10 h-12 rounded-xl font-mono" />
+          <DialogHeader className="pt-8 px-8 flex-none"><DialogTitle className="text-3xl font-display font-bold">{editingProduit ? "Édition" : "Nouveau"} Produit</DialogTitle></DialogHeader>
+          <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col flex-1 overflow-hidden">
+            <div className="p-8 pt-4 overflow-y-auto custom-scrollbar flex-1">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
+                    <div className="space-y-6">
+                        <div className="flex items-center gap-2 pb-2 border-b border-white/5"><Box className="h-4 w-4 text-orange-accent" /><h3 className="text-orange-accent text-[11px] font-black uppercase tracking-widest">Informations Article</h3></div>
+                        <div className="space-y-2"><Label className="text-[10px] font-black text-white/40 uppercase">Désignation *</Label><Input placeholder="Ex: Poussin chair" {...register("nom")} className="bg-white/[0.03] border-white/10 h-12 rounded-xl" /></div>
+                        <div className="space-y-2"><Label className="text-[10px] font-black text-white/40 uppercase">Catégorie *</Label><Select onValueChange={(v) => setValue("categorieId", v)} value={watch("categorieId")}><SelectTrigger className="bg-white/[0.03] border-white/10 h-12 rounded-xl text-sm"><SelectValue placeholder="Choisir..." /></SelectTrigger><SelectContent className="bg-night border-white/10">{categories.map((c) => <SelectItem key={c.id} value={c.id}>{c.nomCategorie}</SelectItem>)}</SelectContent></Select></div>
+                        <div className="grid grid-cols-2 gap-4">
+                            <div className="space-y-2"><Label className="text-[10px] font-black text-white/40 uppercase">Prix d'Achat (Opt.)</Label><Input type="number" step="0.01" {...register("prix_achat", { setValueAs: v => v === "" ? null : parseFloat(v) })} className="bg-white/[0.03] border-white/10 h-12 rounded-xl font-mono" /></div>
+                            <div className="space-y-2"><Label className="text-[10px] font-black text-white/40 uppercase">Prix Vente *</Label><Input type="number" step="0.01" {...register("prix_unitaire", { setValueAs: v => parseFloat(v) })} className="bg-white/[0.03] border-white/10 h-12 rounded-xl font-mono text-orange-accent font-black" /></div>
                         </div>
-                        <div className="space-y-2">
-                            <Label className="text-[10px] font-black text-white/40 uppercase">Prix Vente *</Label>
-                            <Input type="number" step="0.01" {...register("prix_unitaire")} className="bg-white/[0.03] border-white/10 h-12 rounded-xl font-mono text-orange-accent font-black" />
-                        </div>
+                        <div className="space-y-2"><Label className="text-[10px] font-black text-white/40 uppercase">Stock Initial</Label><Input type="number" {...register("quantite", { setValueAs: v => Number(v) })} className="bg-white/[0.03] border-white/10 h-12 rounded-xl font-mono text-center text-lg" /></div>
                     </div>
-                    <div className="space-y-2">
-                        <Label className="text-[10px] font-black text-white/40 uppercase">Stock Initial</Label>
-                        <Input type="number" {...register("quantite")} className="bg-white/[0.03] border-white/10 h-12 rounded-xl font-mono text-center text-lg" />
+                    <div className="space-y-6 bg-white/[0.015] p-6 rounded-[2rem] border border-white/5 shadow-inner">
+                        <div className="flex items-center gap-2 pb-2 border-b border-white/5"><UserIcon className="h-4 w-4 text-blue-400" /><h3 className="text-blue-400 text-[11px] font-black uppercase tracking-widest">Source / Fournisseur</h3></div>
+                        <div className="space-y-2"><Label className="text-[10px] font-black text-white/40 uppercase">Nom ou Entreprise (Opt.)</Label><div className="relative"><UserIcon className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-white/10" /><Input list="suppliers-names" placeholder="Tapez ou choisissez..." {...register("newFournisseurNom")} className="bg-white/5 border-white/10 focus:border-blue-400/50 pl-11 h-12 rounded-xl" /><datalist id="suppliers-names">{fournisseurs.map(f => f.nom && <option key={f.id} value={f.nom} />)}</datalist></div></div>
+                        <div className="space-y-2"><Label className="text-[10px] font-black text-white/40 uppercase">Téléphone *</Label><div className="relative"><Phone className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-white/10" /><Input list="suppliers-tels" placeholder="Tapez ou choisissez..." {...register("newFournisseurTel")} className="bg-white/5 border-white/10 focus:border-blue-400/50 pl-11 h-12 rounded-xl font-mono" /><datalist id="suppliers-tels">{fournisseurs.map(f => <option key={f.id} value={f.telephone} />)}</datalist></div></div>
                     </div>
-                </div>
-
-                <div className="space-y-6 bg-white/[0.015] p-6 rounded-[2rem] border border-white/5 shadow-inner">
-                    <div className="flex items-center gap-2 pb-2 border-b border-white/5"><UserIcon className="h-4 w-4 text-blue-400" /><h3 className="text-blue-400 text-[11px] font-black uppercase tracking-widest">Source / Fournisseur</h3></div>
-                    <div className="space-y-2">
-                        <Label htmlFor="newFournisseurNom" className="text-[10px] font-black text-white/40 uppercase flex items-center justify-between">Nom ou Entreprise (Opt.)</Label>
-                        <div className="relative">
-                            <UserIcon className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-white/10" />
-                            <Input list="suppliers-names" placeholder="Tapez ou choisissez..." {...register("newFournisseurNom")} className="bg-white/5 border-white/10 focus:border-blue-400/50 pl-11 h-12 rounded-xl" />
-                            <datalist id="suppliers-names">{fournisseurs.map(f => f.nom && <option key={f.id} value={f.nom} />)}</datalist>
-                        </div>
-                    </div>
-                    <div className="space-y-2">
-                        <Label htmlFor="newFournisseurTel" className="text-[10px] font-black text-white/40 uppercase flex items-center justify-between">Téléphone *</Label>
-                        <div className="relative">
-                            <Phone className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-white/10" />
-                            <Input list="suppliers-tels" placeholder="Tapez ou choisissez..." {...register("newFournisseurTel")} className="bg-white/5 border-white/10 focus:border-blue-400/50 pl-11 h-12 rounded-xl font-mono" />
-                            <datalist id="suppliers-tels">{fournisseurs.map(f => <option key={f.id} value={f.telephone} />)}</datalist>
-                        </div>
-                        {errors.newFournisseurTel && <p className="text-destructive text-[10px] font-bold italic">{errors.newFournisseurTel.message}</p>}
-                    </div>
-                    <div className="p-4 rounded-xl bg-blue-400/5 border border-blue-400/10 text-[10px] text-blue-400/60 italic">L'auto-remplissage fonctionne si vous choisissez un nom ou numéro existant.</div>
                 </div>
             </div>
-
-            <DialogFooter className="mt-8 border-t border-white/5 pt-8 gap-4 flex-col sm:flex-row">
-                <Button type="button" variant="ghost" onClick={() => setIsModalOpen(false)} className="text-white/40 hover:text-white rounded-xl h-12 px-8">Annuler</Button>
-                <Button type="submit" className="bg-orange-accent text-night font-black uppercase tracking-widest hover:bg-orange-accent/90 rounded-xl px-12 h-14 shadow-xl active:scale-95 transition-all">{editingProduit ? "Enregistrer" : "Créer le produit"}</Button>
-            </DialogFooter>
+            <div className="p-8 pt-0 border-t border-white/5 mt-auto"><Button type="submit" className="w-full h-14 bg-orange-accent text-night font-black uppercase rounded-2xl">Valider</Button></div>
           </form>
         </DialogContent>
       </Dialog>
-
-      <Dialog open={isStockModalOpen} onOpenChange={setIsStockModalOpen}>
-        <DialogContent className="bg-night/95 text-white sm:max-w-md rounded-[2.5rem] p-0 overflow-hidden shadow-2xl">
-          <div className="absolute top-0 left-0 w-full h-1.5 bg-gradient-to-r from-forest-green via-emerald-400 to-forest-green opacity-70" />
-          <DialogHeader className="pt-8 px-8 text-center"><DialogTitle className="text-2xl font-display font-bold">Mouvement Stock</DialogTitle></DialogHeader>
-          <div className="p-8 pt-4 space-y-6">
-            <div className="grid grid-cols-2 gap-4">
-                <button onClick={() => setStockAdjustment({...stockAdjustment, type: "add"})} className={cn("p-6 rounded-3xl border transition-all flex flex-col items-center gap-3", stockAdjustment.type === "add" ? "bg-forest-green/20 border-forest-green text-forest-green" : "bg-white/5 border-white/5 text-white/20 grayscale")}><PackagePlus className="h-8 w-8" /><span className="text-[10px] font-black uppercase">Réception</span></button>
-                <button onClick={() => setStockAdjustment({...stockAdjustment, type: "remove"})} className={cn("p-6 rounded-3xl border transition-all flex flex-col items-center gap-3", stockAdjustment.type === "remove" ? "bg-destructive/20 border-destructive text-destructive" : "bg-white/5 border-white/5 text-white/20 grayscale")}><Trash2 className="h-8 w-8" /><span className="text-[10px] font-black uppercase">Sortie</span></button>
-            </div>
-            <Input type="number" value={stockAdjustment.quantite} onChange={(e) => setStockAdjustment({...stockAdjustment, quantite: Number(e.target.value)})} className="bg-white/5 border-white/10 h-20 rounded-3xl font-mono text-4xl text-center font-black" />
-            <Button onClick={handleStockAdjustment} className={cn("w-full h-16 rounded-2xl font-black uppercase tracking-widest transition-all", stockAdjustment.type === "add" ? "bg-forest-green text-white" : "bg-destructive text-white")}>Valider</Button>
-          </div>
-        </DialogContent>
-      </Dialog>
-      
-      <Dialog open={showSuccess} onOpenChange={setShowSuccess}><DialogContent className="bg-night/95 text-white text-center border-white/10 rounded-[2.5rem] p-10 max-w-sm"><div className="flex flex-col items-center gap-6"><div className="h-20 w-20 bg-forest-green/20 rounded-full flex items-center justify-center animate-bounce"><CheckCircle2 className="h-10 w-10 text-forest-green" /></div> <DialogTitle className="text-2xl font-display font-bold">Succès !</DialogTitle><Button onClick={() => setShowSuccess(false)} className="w-full bg-forest-green/20 text-forest-green rounded-xl h-12 font-bold">Continuer</Button></div></DialogContent></Dialog>
-      <Dialog open={showError} onOpenChange={setShowError}><DialogContent className="bg-night/95 text-white text-center border-white/10 rounded-[2.5rem] p-10 max-w-sm"><div className="flex flex-col items-center gap-6"><div className="h-20 w-20 bg-destructive/20 rounded-full flex items-center justify-center"><AlertCircle className="h-10 w-10 text-destructive" /></div> <DialogTitle className="text-2xl font-display font-bold">Erreur</DialogTitle><p className="text-destructive/80 text-sm">{errorMessage}</p><Button onClick={() => setShowError(false)} className="w-full bg-destructive text-white rounded-xl h-12 font-bold">Reessayer</Button></div></DialogContent></Dialog>
     </div>
   );
 }

@@ -72,7 +72,7 @@ export const produitService = {
     const newProduit = await prisma.produit.create({
       data: {
         ...cleanProduitData,
-        fournisseur: { connect: { id: finalFournisseurId } },
+        fournisseurId: finalFournisseurId,
       },
     });
 
