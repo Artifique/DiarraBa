@@ -136,37 +136,39 @@ export default function CategoriePage() {
         </Button>
       </div>
 
-      <div className="glass-card rounded-2xl overflow-x-auto border border-white/10 shadow-2xl">
-        <table className="w-full text-left min-w-[600px]">
-          <thead className="bg-white/[0.03] uppercase text-[9px] md:text-[10px] tracking-widest text-muted-foreground/60 font-black border-b border-white/5">
-            <tr>
-              <th className="p-4 md:p-6">Nom de Catégorie</th>
-              <th className="p-4 md:p-6">Dernière Mise à jour</th>
-              <th className="p-4 md:p-6 text-right">Actions</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-white/5 text-sm">
-            {categories.length === 0 ? (
-              <tr><td colSpan={3} className="p-12 text-center text-muted-foreground/50 italic">Aucune catégorie.</td></tr>
-            ) : (
-              categories.map((cat) => (
-                <tr key={cat.id} className="group hover:bg-white/[0.02] transition-colors">
-                  <td className="p-4 md:p-6">
-                    <div className="flex items-center gap-3">
-                        <div className="h-8 w-8 rounded-lg bg-orange-accent/10 flex items-center justify-center text-orange-accent"><Tag className="h-4 w-4" /></div>
-                        <span className="text-white font-bold">{cat.nomCategorie}</span>
-                    </div>
-                  </td>
-                  <td className="p-4 md:p-6 text-muted-foreground/80">{new Date(cat.date_modification).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })}</td>
-                  <td className="p-4 md:p-6 text-right flex justify-end gap-1">
-                    <Button variant="ghost" size="icon" onClick={() => openEditModal(cat)} className="text-blue-400 hover:bg-blue-400/10 rounded-lg"><Edit className="h-5 w-5" /></Button>
-                    <Button variant="ghost" size="icon" onClick={() => handleDelete(cat.id)} className="text-destructive hover:bg-destructive/10 rounded-lg"><Trash2 className="h-5 w-5" /></Button>
-                  </td>
+      <div className="glass-card rounded-2xl border border-white/10 shadow-2xl overflow-hidden">
+        <div className="overflow-x-auto custom-scrollbar">
+            <table className="w-full text-left min-w-[600px]">
+              <thead className="bg-white/[0.03] uppercase text-[9px] md:text-[10px] tracking-widest text-muted-foreground/60 font-black border-b border-white/5">
+                <tr>
+                  <th className="p-4 md:p-6">Nom de Catégorie</th>
+                  <th className="p-4 md:p-6">Dernière Mise à jour</th>
+                  <th className="p-4 md:p-6 text-right">Actions</th>
                 </tr>
-              ))
-            )}
-          </tbody>
-        </table>
+              </thead>
+              <tbody className="divide-y divide-white/5 text-sm">
+                {categories.length === 0 ? (
+                  <tr><td colSpan={3} className="p-12 text-center text-muted-foreground/50 italic">Aucune catégorie.</td></tr>
+                ) : (
+                  categories.map((cat) => (
+                    <tr key={cat.id} className="group hover:bg-white/[0.02] transition-colors">
+                      <td className="p-4 md:p-6">
+                        <div className="flex items-center gap-3">
+                            <div className="h-8 w-8 rounded-lg bg-orange-accent/10 flex items-center justify-center text-orange-accent"><Tag className="h-4 w-4" /></div>
+                            <span className="text-white font-bold">{cat.nomCategorie}</span>
+                        </div>
+                      </td>
+                      <td className="p-4 md:p-6 text-muted-foreground/80">{new Date(cat.date_modification).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })}</td>
+                      <td className="p-4 md:p-6 text-right flex justify-end gap-1">
+                        <Button variant="ghost" size="icon" onClick={() => openEditModal(cat)} className="text-blue-400 hover:bg-blue-400/10 rounded-lg"><Edit className="h-5 w-5" /></Button>
+                        <Button variant="ghost" size="icon" onClick={() => handleDelete(cat.id)} className="text-destructive hover:bg-destructive/10 rounded-lg"><Trash2 className="h-5 w-5" /></Button>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+        </div>
       </div>
 
       <Pagination currentPage={currentPage} totalPages={totalPages} onPageChange={setCurrentPage} className="mt-6" />

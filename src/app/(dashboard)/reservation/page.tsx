@@ -298,38 +298,40 @@ export default function ReservationPage() {
         </Button>
       </div>
 
-      <div className="glass-card rounded-2xl overflow-x-auto border border-white/10 shadow-2xl">
-        <table className="w-full text-left min-w-[800px]">
-          <thead className="bg-white/[0.03] uppercase text-[9px] md:text-[10px] tracking-widest text-muted-foreground/60 font-black border-b border-white/5">
-            <tr>
-              <th className="p-4 md:p-6">Client</th>
-              <th className="p-4 md:p-6">Dates (D/F)</th>
-              <th className="p-4 md:p-6 text-center">Montant</th>
-              <th className="p-4 md:p-6 text-center">Reste à payer</th>
-              <th className="p-4 md:p-6 text-right">Actions</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-white/5 text-sm">
-            {reservations.map((res: any) => {
-                const totalPaye = res.paiements?.reduce((acc: any, p: any) => acc + p.montant, 0) || 0;
-                const reste = res.montant_total - totalPaye;
-                return (
-                    <tr key={res.id} className="group hover:bg-white/[0.02] transition-colors">
-                        <td className="p-4 md:p-6"><div className="flex flex-col"><span className="text-white font-bold">{res.client?.nom || res.clientNom || "N/A"}</span><span className="text-[10px] text-orange-accent/70">{res.client?.telephone || res.clientTel}</span></div></td>
-                        <td className="p-4 md:p-6 text-muted-foreground">{new Date(res.date_reservation).toLocaleDateString()} / {new Date(res.date_finale).toLocaleDateString()}</td>
-                        <td className="p-4 md:p-6 text-center font-mono text-white">{res.montant_total.toLocaleString()} FCFA</td>
-                        <td className="p-4 md:p-6 text-center font-bold text-red-400">{reste.toLocaleString()} FCFA</td>
-                        <td className="p-4 md:p-6 text-right flex justify-end gap-1">
-                            <Button variant="ghost" size="icon" onClick={() => openPaiementModal(res)} className="text-forest-green hover:bg-forest-green/10"><DollarSign className="h-5 w-5" /></Button>
-                            <Button variant="ghost" size="icon" onClick={() => generateInvoice(res)} className="text-blue-400 hover:bg-blue-400/10"><Printer className="h-5 w-5" /></Button>
-                            <Button variant="ghost" size="icon" onClick={() => openEditModal(res)} className="text-orange-accent hover:bg-orange-accent/10"><Edit className="h-5 w-5" /></Button>
-                            <Button variant="ghost" size="icon" onClick={() => setDeleteId(res.id)} className="text-destructive hover:bg-destructive/10"><Trash2 className="h-5 w-5" /></Button>
-                        </td>
-                    </tr>
-                );
-            })}
-          </tbody>
-        </table>
+      <div className="glass-card rounded-2xl border border-white/10 shadow-2xl overflow-hidden">
+        <div className="overflow-x-auto custom-scrollbar">
+            <table className="w-full text-left min-w-[700px]">
+              <thead className="bg-white/[0.03] uppercase text-[9px] md:text-[10px] tracking-widest text-muted-foreground/60 font-black border-b border-white/5">
+                <tr>
+                  <th className="p-4">Client</th>
+                  <th className="p-4">Dates</th>
+                  <th className="p-4 text-center">Montant</th>
+                  <th className="p-4 text-center">Reste</th>
+                  <th className="p-4 text-right">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-white/5 text-xs">
+                {reservations.map((res: any) => {
+                    const totalPaye = res.paiements?.reduce((acc: any, p: any) => acc + p.montant, 0) || 0;
+                    const reste = res.montant_total - totalPaye;
+                    return (
+                        <tr key={res.id} className="group hover:bg-white/[0.02] transition-colors">
+                            <td className="p-4"><div className="flex flex-col"><span className="text-white font-bold">{res.client?.nom || res.clientNom || "N/A"}</span><span className="text-[10px] text-orange-accent/70 font-mono">{res.client?.telephone || res.clientTel}</span></div></td>
+                            <td className="p-4 text-muted-foreground">{new Date(res.date_reservation).toLocaleDateString()} / {new Date(res.date_finale).toLocaleDateString()}</td>
+                            <td className="p-4 text-center font-mono text-white">{res.montant_total.toLocaleString()}</td>
+                            <td className="p-4 text-center font-bold text-red-400">{reste.toLocaleString()}</td>
+                            <td className="p-4 text-right flex justify-end gap-1">
+                                <Button variant="ghost" size="icon" onClick={() => openPaiementModal(res)} className="text-forest-green hover:bg-forest-green/10"><DollarSign className="h-5 w-5" /></Button>
+                                <Button variant="ghost" size="icon" onClick={() => generateInvoice(res)} className="text-blue-400 hover:bg-blue-400/10"><Printer className="h-5 w-5" /></Button>
+                                <Button variant="ghost" size="icon" onClick={() => openEditModal(res)} className="text-orange-accent hover:bg-orange-accent/10"><Edit className="h-5 w-5" /></Button>
+                                <Button variant="ghost" size="icon" onClick={() => setDeleteId(res.id)} className="text-destructive hover:bg-destructive/10"><Trash2 className="h-5 w-5" /></Button>
+                            </td>
+                        </tr>
+                    );
+                })}
+              </tbody>
+            </table>
+        </div>
       </div>
 
       {/* Confirmation Suppression */}

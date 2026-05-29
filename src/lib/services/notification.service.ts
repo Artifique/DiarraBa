@@ -33,7 +33,7 @@ export const notificationService = {
       include: { client: true },
     });
     for (const res of reservations) {
-      await createIfNotExists(userId, "Reservation", `Rappel : Réservation client ${res.client?.telephone || res.clientTel} expire demain.`, res.id, "/reservation");
+      await createIfNotExists(userId, "Reservation", `Rappel : Réservation client ${res.client?.telephone || "Inconnu"} expire demain.`, res.id, "/reservation");
     }
 
     // 2. Stocks faibles
