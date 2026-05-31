@@ -1,7 +1,19 @@
 // src/lib/services/reservation.service.ts
 import prisma from "@/lib/prisma";
 import { Reservation, LigneReservation, Prisma } from "../../generated/prisma/index";
-import { auditService } from "./audit.service"; // Pour les logs d'audit
+import { auditService } from "./audit.service";
+
+// Helper : crée une notification si elle n'existe pas déjà
+async function createNotifIfNotExists(userId: string, type: string, message: string, entity_id?: string) {
+  const existing = await prisma.notification.findFirst({
+    where: { userId, message, read: false, type, entity_id },
+  });
+  if (!existing) {
+    await prisma.notification.create({
+      data: { userId, type, message, read: false, entity_id },
+    });
+  }
+}
 
 export const reservationService = {
   async getAllReservations(): Promise<Reservation[]> {
@@ -39,8 +51,6 @@ export const reservationService = {
   async createReservation(data: any, userId: string): Promise<Reservation> {
     const { clientNom, clientTel, clientId, ...rest } = data;
 
-    console.log("DEBUG: Données reçues dans createReservation :", { clientNom, clientTel, clientId, rest });
-
     try {
         const newReservation = await prisma.reservation.create({
           data: {
@@ -59,9 +69,18 @@ export const reservationService = {
           new_value: newReservation,
         });
 
+        // Notification : nouvelle réservation créée
+        const clientLabel = clientNom || clientTel || "Inconnu";
+        await createNotifIfNotExists(
+          userId,
+          "Reservation",
+          `Nouvelle réservation créée pour ${clientLabel}.`,
+          newReservation.id
+        );
+
         return newReservation;
     } catch (error) {
-        console.error("DEBUG: Erreur Prisma lors de la création de la réservation :", error);
+        console.error("Erreur Prisma lors de la création de la réservation :", error);
         throw error;
     }
   },
@@ -114,7 +133,32 @@ export const reservationService = {
     const newLigne = await prisma.ligneReservation.create({
       data,
     });
-    // Mettre à jour le montant total de la réservation si nécessaire
+
+    // ── Décrémentation du stock ──────────────────────────────────────
+    const produitId = (data.produit as any)?.connect?.id;
+    const quantite  = typeof data.quantite === "number" ? data.quantite : Number(data.quantite ?? 0);
+
+    if (produitId && quantite > 0) {
+      const updatedProduit = await prisma.produit.update({
+        where: { id: produitId },
+        data: { quantite: { decrement: quantite } },
+      });
+
+      // ── Notification si stock faible ─────────────────────────────
+      const thresholdSetting = await prisma.setting.findUnique({ where: { key: "low_stock_threshold" } });
+      const threshold = thresholdSetting ? Number(thresholdSetting.value) : 5;
+
+      if (updatedProduit.quantite <= threshold) {
+        await createNotifIfNotExists(
+          userId,
+          "Alerte",
+          `Stock faible : "${updatedProduit.nom}" (${updatedProduit.quantite} restant${updatedProduit.quantite > 1 ? "s" : ""}).`,
+          updatedProduit.id
+        );
+      }
+    }
+    // ────────────────────────────────────────────────────────────────
+
     return newLigne;
   },
 
