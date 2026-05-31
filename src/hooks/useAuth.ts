@@ -2,7 +2,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { User as PrismaUser } from "../../generated/prisma/index";
+import { User as PrismaUser } from "@/generated/prisma";
 
 interface AuthUser {
   id: string;
