@@ -5,7 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import Image from "next/image";
 import {
-  LayoutDashboard, Users, Truck, LogOut, Package, ClipboardList, Zap, Settings, Tag, User as UserIcon, X
+  LayoutDashboard, Users, Bell, LogOut, Package, ClipboardList, Zap, Settings, Tag, User as UserIcon, X
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -20,7 +20,7 @@ const navigation = [
   { name: "Eclosion", href: "/eclosion", icon: Zap },
   { name: "Utilisateurs", href: "/users", icon: Users },
   { group: true, name: "SYSTÈME" },
-  { name: "Notifications", href: "/notifications", icon: Truck },
+  { name: "Notifications", href: "/notifications", icon: Bell },
   { name: "Settings", href: "/settings", icon: Settings },
 ];
 
