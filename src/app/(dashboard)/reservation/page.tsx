@@ -486,7 +486,7 @@ export default function ReservationPage() {
                 <p className="text-3xl font-mono font-black text-forest-green">{paiementForm.watch("montant")?.toLocaleString()} FCFA</p>
             </div>
             <div className="space-y-4">
-                <Input type="number" {...registerPaiement("montant")} className="bg-white/5 h-12 rounded-xl" placeholder="Montant" />
+                <Input type="number" {...registerPaiement("montant", { valueAsNumber: true })} className="bg-white/5 h-12 rounded-xl" placeholder="Montant" />
                 <Select onValueChange={(v: "Tranche" | "Totalité") => paiementForm.setValue("methode", v)} value={paiementForm.watch("methode")}>
                     <SelectTrigger className="bg-white/5 h-12 rounded-xl"><SelectValue placeholder="Type Paiement *" /></SelectTrigger>
                     <SelectContent className="bg-night border-white/10"><SelectItem value="Tranche">Tranche</SelectItem><SelectItem value="Totalité">Totalité</SelectItem></SelectContent>
