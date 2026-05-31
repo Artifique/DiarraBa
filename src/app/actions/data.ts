@@ -120,6 +120,8 @@ export async function updateUserAction(id: string, data: any) { return userServi
 export async function deleteUserAction(id: string) { return userService.deleteUser(id); }
 export async function updatePasswordAction(id: string, currentPassword: string, newPassword: string) { return userService.updatePassword(id, currentPassword, newPassword); }
 
+export async function getCurrentUserAction(id: string) { return userService.getUserById(id); }
+
 // Dashboard
 import { dashboardService } from "@/lib/services/dashboard.service";
 export async function getDashboardDataAction() {

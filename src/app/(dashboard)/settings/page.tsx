@@ -2,11 +2,12 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useAuth } from "@/hooks/useAuth";
 import { motion, AnimatePresence } from "framer-motion";
 import { Settings, User, Save, Loader2, CheckCircle2, AlertCircle, Mail, Phone, Lock, Bell, Gauge } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { User as PrismaUser, Setting as PrismaSetting } from "../../../generated/prisma/index";
-import { getAllSettingsAction, updateSettingAction, createSettingAction, updatePasswordAction } from "../../actions/data";
+import { getAllSettingsAction, updateSettingAction, createSettingAction, updatePasswordAction, getCurrentUserAction, updateUserAction } from "../../actions/data";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -31,9 +32,10 @@ type ManagerFormValues = z.infer<typeof formSchema>;
 type AppSettingsFormValues = z.infer<typeof appSettingsFormSchema>;
 
 export default function SettingsPage() {
-  const [loading, setLoading] = useState(true);
+  const { user: authenticatedUser, loading: authLoading } = useAuth(); // Utiliser le hook useAuth
+  const [loading, setLoading] = useState(true); // Gérer le chargement interne du composant
   const [saving, setSaving] = useState(false);
-  const [user, setUser] = useState<PrismaUser | null>(null);
+  const [user, setUser] = useState<PrismaUser | null>(null); // L'utilisateur affiché et modifiable
   const [activeTab, setActiveTab] = useState<"profile" | "app_settings">("profile");
   const [showSuccess, setShowSuccess] = useState(false);
   const [showError, setShowError] = useState(false);
@@ -55,16 +57,20 @@ export default function SettingsPage() {
 
   useEffect(() => {
     const fetchInitialData = async () => {
+      if (!authenticatedUser) { // Attendre que l'utilisateur soit chargé par useAuth
+        setLoading(false); // Si pas d'utilisateur authentifié, arrêter le chargement
+        return;
+      }
+
       try {
         setLoading(true);
-        const storedUser = localStorage.getItem("user");
-        if (storedUser) {
-          const userData: PrismaUser = JSON.parse(storedUser);
-          setUser(userData);
+        const fetchedUser = await getCurrentUserAction(authenticatedUser.id); // Utiliser la nouvelle action
+        if (fetchedUser) {
+          setUser(fetchedUser);
           resetProfile({
-            nom: userData.nom,
-            email: userData.email || "",
-            telephone: userData.telephone,
+            nom: fetchedUser.nom,
+            email: fetchedUser.email || "",
+            telephone: fetchedUser.telephone,
           });
         }
         const fetchedSettings = await getAllSettingsAction();
@@ -79,8 +85,11 @@ export default function SettingsPage() {
         setLoading(false);
       }
     };
-    fetchInitialData();
-  }, [resetProfile, resetAppSettings]);
+
+    if (!authLoading) { // Lancer la récupération des données seulement après que useAuth ait terminé
+        fetchInitialData();
+    }
+  }, [authenticatedUser, authLoading, resetProfile, resetAppSettings]);
 
   const [passwordSaving, setPasswordSaving] = useState(false);
   const passwordForm = useForm({
@@ -109,11 +118,16 @@ export default function SettingsPage() {
     if (!user) return;
     setSaving(true);
     try {
-      const updatedUser = { ...user, ...values };
-      setUser(updatedUser);
-      localStorage.setItem("user", JSON.stringify(updatedUser));
-      setShowSuccess(true);
-    } catch (e) { setErrorMessage("Erreur lors de la sauvegarde."); setShowError(true); } 
+      const updatedUser = await updateUserAction(user.id, values); // Utiliser updateUserAction
+      if (updatedUser) {
+        setUser(updatedUser);
+        localStorage.setItem("user", JSON.stringify(updatedUser)); // Mettre à jour localStorage
+        setShowSuccess(true);
+      } else {
+        setErrorMessage("Erreur lors de la mise à jour de l'utilisateur.");
+        setShowError(true);
+      }
+    } catch (e: any) { setErrorMessage(e.message || "Erreur lors de la sauvegarde du profil."); setShowError(true); } 
     finally { setSaving(false); }
   };
 
@@ -135,7 +149,9 @@ export default function SettingsPage() {
     finally { setSaving(false); }
   };
 
-  if (loading) return <div className="flex justify-center items-center h-[50vh]"><Loader2 className="h-12 w-12 animate-spin text-orange-accent" /></div>;
+  if (loading || authLoading || !user) {
+    return <div className="flex justify-center items-center h-[50vh]"><Loader2 className="h-12 w-12 animate-spin text-orange-accent" /></div>;
+  }
 
   return (
     <div className="max-w-4xl mx-auto space-y-8 pb-12 p-2">
