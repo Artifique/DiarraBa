@@ -200,7 +200,8 @@ export default function EclosionPage() {
         <Input type="date" value={dateFilter} onChange={(e) => setDateFilter(e.target.value)} className="w-full md:w-60 bg-white/5 border-white/10 h-12 rounded-xl text-xs font-mono" />
       </div>
 
-      <div className="glass-card rounded-2xl overflow-x-auto border border-white/10 shadow-2xl">
+      {/* Table View (Desktop & Tablet) */}
+      <div className="hidden md:block glass-card rounded-2xl border border-white/10 shadow-2xl overflow-hidden">
         <table className="w-full text-left min-w-[800px]">
           <thead className="bg-white/[0.03] uppercase text-[9px] md:text-[10px] tracking-widest text-muted-foreground/60 font-black border-b border-white/5">
             <tr>
@@ -235,21 +236,143 @@ export default function EclosionPage() {
         </table>
       </div>
 
+      {/* Card View (Mobile) */}
+      <div className="grid grid-cols-1 gap-4 md:hidden">
+        {filteredEclosions.length === 0 ? (
+          <div className="glass-card p-8 text-center text-muted-foreground/50 italic border border-white/10">Aucun cycle trouvé.</div>
+        ) : (
+          filteredEclosions.map((e) => (
+            <div key={e.id} className="glass-card p-5 rounded-2xl border border-white/10 shadow-lg space-y-4">
+              <div className="flex justify-between items-start">
+                <div>
+                  <p className="text-white/40 text-[8px] font-black uppercase tracking-wider">Téléphone</p>
+                  <h4 className="text-white font-mono font-bold text-base mt-0.5">{e.telephone}</h4>
+                </div>
+                <span className={cn(
+                  "px-2.5 py-0.5 rounded-full text-[10px] font-black border",
+                  e.paye ? "bg-forest-green/10 text-forest-green border-forest-green/20" : "bg-destructive/10 text-destructive border-destructive/20"
+                )}>
+                  {e.paye ? "RÉGLÉ" : "À PAYER"}
+                </span>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4 bg-white/[0.015] p-3 rounded-xl border border-white/5 text-xs">
+                <div>
+                  <p className="text-muted-foreground text-[8px] font-black uppercase">Quantité d'œufs</p>
+                  <p className="text-white font-bold mt-0.5">{e.quantite} pcs</p>
+                  <p className="text-muted-foreground text-[8px] font-black uppercase mt-2">Prix total</p>
+                  <p className="text-orange-accent font-mono font-bold text-xs mt-0.5">{e.prix.toLocaleString()} FCFA</p>
+                </div>
+                <div className="text-right flex flex-col justify-between">
+                  <div>
+                    <p className="text-muted-foreground text-[8px] font-black uppercase">Cycle début</p>
+                    <p className="text-white/80 font-medium mt-0.5">{new Date(e.date_debut).toLocaleDateString()}</p>
+                  </div>
+                  <div>
+                    <p className="text-muted-foreground text-[8px] font-black uppercase mt-2">Échéance prévue</p>
+                    <p className="text-blue-400 font-bold mt-0.5">{new Date(e.date_fin_prevue).toLocaleDateString()}</p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex items-center justify-end gap-2 pt-2 border-t border-white/5">
+                <Button variant="ghost" size="icon" onClick={() => openPaiementModal(e)} className="text-forest-green hover:bg-forest-green/10 rounded-xl h-10 w-10 border border-white/5" title="Paiement">
+                  <DollarSign className="h-5 w-5" />
+                </Button>
+                <Button variant="ghost" size="icon" onClick={() => openEditModal(e)} className="text-blue-400 hover:bg-blue-400/10 rounded-xl h-10 w-10 border border-white/5" title="Modifier">
+                  <Edit className="h-5 w-5" />
+                </Button>
+                <Button variant="ghost" size="icon" onClick={() => handleDelete(e.id)} className="text-destructive hover:bg-destructive/10 rounded-xl h-10 w-10 border border-white/5" title="Supprimer">
+                  <Trash2 className="h-5 w-5" />
+                </Button>
+              </div>
+            </div>
+          ))
+        )}
+      </div>
+
+      {/* Modal Création/Édition Éclosion */}
+      <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
+        <DialogContent className="bg-night/95 backdrop-blur-2xl border-white/10 text-white w-[95%] sm:max-w-md rounded-[2rem] p-0 overflow-hidden shadow-2xl flex flex-col max-h-[90vh]">
+          <div className="absolute top-0 left-0 w-full h-1.5 bg-gradient-to-r from-orange-accent via-yellow-500 to-orange-accent opacity-70" />
+          <DialogHeader className="pt-8 px-6 sm:px-8 flex-none">
+            <DialogTitle className="text-2xl sm:text-3xl font-display font-bold">
+              {editingEclosion ? "Modifier" : "Lancer"} Éclosion
+            </DialogTitle>
+            <DialogDescription className="text-muted-foreground/60 text-xs">
+              Enregistrez un nouveau cycle de couveuse pour un client.
+            </DialogDescription>
+          </DialogHeader>
+          <form onSubmit={handleSubmit(onSubmit)} className="p-5 sm:p-8 pt-2 sm:pt-4 space-y-6 overflow-y-auto custom-scrollbar flex-1">
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <Label className="text-[10px] font-black uppercase">Téléphone du client *</Label>
+                <div className="relative">
+                  <Phone className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-white/20" />
+                  <Input type="tel" placeholder="Ex: 771234567" {...register("telephone")} className="bg-white/5 border-white/10 pl-11 h-12 rounded-xl font-mono" />
+                </div>
+                {errors.telephone && <p className="text-destructive text-[10px] font-bold italic">{errors.telephone.message}</p>}
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label className="text-[10px] font-black uppercase">Quantité d'œufs *</Label>
+                  <Input type="number" {...register("quantite", { valueAsNumber: true })} className="bg-white/5 border-white/10 h-12 rounded-xl text-center text-lg font-mono font-bold" />
+                  {errors.quantite && <p className="text-destructive text-[10px] font-bold italic">{errors.quantite.message}</p>}
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-[10px] font-black uppercase">Coût Service (FCFA)</Label>
+                  <Input type="number" {...register("prix", { valueAsNumber: true })} className="bg-white/5 border-white/10 h-12 rounded-xl font-mono text-right text-orange-accent font-bold" />
+                  {errors.prix && <p className="text-destructive text-[10px] font-bold italic">{errors.prix.message}</p>}
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label className="text-[10px] font-black uppercase">Date de début</Label>
+                  <Input type="date" {...register("date_debut")} className="bg-white/5 border-white/10 h-12 rounded-xl text-xs font-mono" />
+                  {errors.date_debut && <p className="text-destructive text-[10px] font-bold italic">{errors.date_debut.message}</p>}
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-[10px] font-black uppercase">Échéance (20j)</Label>
+                  <Input type="date" {...register("date_fin_prevue")} className="bg-white/5 border-white/10 h-12 rounded-xl text-xs font-mono" />
+                  {errors.date_fin_prevue && <p className="text-destructive text-[10px] font-bold italic">{errors.date_fin_prevue.message}</p>}
+                </div>
+              </div>
+
+              <div className="flex items-center gap-3 p-3 bg-white/5 rounded-2xl border border-white/5">
+                <input type="checkbox" {...register("paye")} className="h-5 w-5 rounded-lg border-white/10 bg-white/5 text-forest-green" />
+                <Label className="text-xs font-bold text-white/60">Marquer comme payé dès le départ</Label>
+              </div>
+            </div>
+
+            <DialogFooter className="pt-4 border-t border-white/5 gap-3 flex-col sm:flex-row mt-6">
+              <Button type="button" variant="ghost" onClick={() => setIsModalOpen(false)} className="text-white/40 hover:text-white rounded-xl h-12 w-full sm:w-auto">
+                Annuler
+              </Button>
+              <Button type="submit" className="bg-orange-accent text-night font-black uppercase tracking-widest hover:bg-orange-accent/90 rounded-xl px-8 h-14 shadow-xl active:scale-95 transition-all w-full sm:w-auto">
+                {editingEclosion ? "Mettre à jour" : "Lancer le cycle"}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
       {/* Modal Paiement */}
       <Dialog open={isPaiementModalOpen} onOpenChange={setIsPaiementModalOpen}>
-        <DialogContent className="bg-night/95 text-white sm:max-w-md rounded-[2.5rem] p-0 overflow-hidden shadow-2xl">
+        <DialogContent className="bg-night/95 text-white w-[95%] sm:max-w-md rounded-[2rem] p-0 overflow-hidden shadow-2xl flex flex-col max-h-[90vh]">
           <div className="absolute top-0 left-0 w-full h-1.5 bg-gradient-to-r from-forest-green via-emerald-400 to-forest-green opacity-70" />
-          <DialogHeader className="pt-8 px-8"><DialogTitle className="text-2xl font-display font-bold">Paiement Éclosion</DialogTitle></DialogHeader>
-          <form onSubmit={paiementForm.handleSubmit(handlePaiement)} className="p-8 pt-4 space-y-6">
+          <DialogHeader className="pt-8 px-6 sm:px-8 flex-none"><DialogTitle className="text-2xl font-display font-bold">Paiement Éclosion</DialogTitle></DialogHeader>
+          <form onSubmit={paiementForm.handleSubmit(handlePaiement)} className="p-5 sm:p-8 pt-2 sm:pt-4 space-y-6 overflow-y-auto custom-scrollbar flex-1">
             <div className="space-y-4">
               <Label className="text-[10px] font-black uppercase">Montant Service (FCFA)</Label>
-              <Input type="number" {...paiementForm.register("prix", { valueAsNumber: true })} className="bg-white/5 h-12 rounded-xl font-mono text-center text-lg" />
+              <Input type="number" {...paiementForm.register("prix", { valueAsNumber: true })} className="bg-white/5 h-12 rounded-xl font-mono text-center text-lg font-bold" />
               <div className="flex items-center gap-3 p-3 bg-white/5 rounded-2xl border border-white/5">
                 <input type="checkbox" {...paiementForm.register("paye")} className="h-5 w-5 rounded-lg border-white/10 bg-white/5 text-forest-green" />
                 <Label className="text-xs font-bold text-white/60">Marquer comme payé</Label>
               </div>
             </div>
-            <Button type="submit" className="w-full h-14 bg-forest-green text-white font-black rounded-2xl shadow-xl">Valider Paiement</Button>
+            <Button type="submit" className="w-full h-14 bg-forest-green text-white font-black rounded-2xl shadow-xl active:scale-95 cursor-pointer">Valider Paiement</Button>
           </form>
         </DialogContent>
       </Dialog>

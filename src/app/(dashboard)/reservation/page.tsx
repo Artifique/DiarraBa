@@ -298,7 +298,8 @@ export default function ReservationPage() {
         </Button>
       </div>
 
-      <div className="glass-card rounded-2xl border border-white/10 shadow-2xl overflow-hidden">
+      {/* Table View (Desktop & Tablet) */}
+      <div className="hidden md:block glass-card rounded-2xl border border-white/10 shadow-2xl overflow-hidden">
         <div className="overflow-x-auto custom-scrollbar">
             <table className="w-full text-left min-w-[700px]">
               <thead className="bg-white/[0.03] uppercase text-[9px] md:text-[10px] tracking-widest text-muted-foreground/60 font-black border-b border-white/5">
@@ -334,6 +335,76 @@ export default function ReservationPage() {
         </div>
       </div>
 
+      {/* Card View (Mobile) */}
+      <div className="grid grid-cols-1 gap-4 md:hidden">
+        {reservations.length === 0 ? (
+          <div className="glass-card p-8 text-center text-muted-foreground/50 italic border border-white/10">Aucune réservation.</div>
+        ) : (
+          reservations.map((res: any) => {
+            const totalPaye = res.paiements?.reduce((acc: any, p: any) => acc + p.montant, 0) || 0;
+            const reste = res.montant_total - totalPaye;
+            return (
+              <div key={res.id} className="glass-card p-5 rounded-2xl border border-white/10 shadow-lg space-y-4">
+                <div className="flex justify-between items-start">
+                  <div>
+                    <h4 className="text-white font-bold text-base leading-tight">
+                      {res.client?.nom || res.clientNom || "Client Indéfini"}
+                    </h4>
+                    <span className="text-[10px] text-orange-accent/70 font-mono mt-0.5 block">
+                      {res.client?.telephone || res.clientTel}
+                    </span>
+                  </div>
+                  <span className={cn(
+                    "px-2.5 py-0.5 rounded-full text-[10px] font-black border",
+                    reste <= 0 ? "bg-forest-green/10 text-forest-green border-forest-green/20" : "bg-destructive/10 text-destructive border-destructive/20"
+                  )}>
+                    {reste <= 0 ? "RÉGLÉ" : "SOLDE DÛ"}
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4 bg-white/[0.015] p-3 rounded-xl border border-white/5 text-xs">
+                  <div>
+                    <p className="text-muted-foreground text-[8px] font-black uppercase">Réservation / Échéance</p>
+                    <p className="text-white/80 font-medium mt-0.5">
+                      {new Date(res.date_reservation).toLocaleDateString("fr-FR")}
+                    </p>
+                    <p className="text-blue-400 font-medium text-[10px] mt-0.5">
+                      échéance: {new Date(res.date_finale).toLocaleDateString("fr-FR")}
+                    </p>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-muted-foreground text-[8px] font-black uppercase">Montant total</p>
+                    <p className="text-white font-mono font-bold text-sm mt-0.5">
+                      {res.montant_total.toLocaleString()} FCFA
+                    </p>
+                    {reste > 0 && (
+                      <p className="text-red-400 font-mono text-[10px] font-bold mt-0.5">
+                        reste: {reste.toLocaleString()}
+                      </p>
+                    )}
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-end gap-2 pt-2 border-t border-white/5">
+                  <Button variant="ghost" size="icon" onClick={() => openPaiementModal(res)} className="text-forest-green hover:bg-forest-green/10 rounded-xl h-10 w-10 border border-white/5" title="Enregistrer un paiement">
+                    <DollarSign className="h-5 w-5" />
+                  </Button>
+                  <Button variant="ghost" size="icon" onClick={() => generateInvoice(res)} className="text-blue-400 hover:bg-blue-400/10 rounded-xl h-10 w-10 border border-white/5" title="Imprimer la facture">
+                    <Printer className="h-5 w-5" />
+                  </Button>
+                  <Button variant="ghost" size="icon" onClick={() => openEditModal(res)} className="text-orange-accent hover:bg-orange-accent/10 rounded-xl h-10 w-10 border border-white/5" title="Modifier">
+                    <Edit className="h-5 w-5" />
+                  </Button>
+                  <Button variant="ghost" size="icon" onClick={() => setDeleteId(res.id)} className="text-destructive hover:bg-destructive/10 rounded-xl h-10 w-10 border border-white/5" title="Supprimer">
+                    <Trash2 className="h-5 w-5" />
+                  </Button>
+                </div>
+              </div>
+            );
+          })
+        )}
+      </div>
+
       {/* Confirmation Suppression */}
       <Dialog open={!!deleteId} onOpenChange={() => setDeleteId(null)}>
         <DialogContent className="bg-night/95 backdrop-blur-xl text-white border-white/10 rounded-[2.5rem] p-10 max-w-sm text-center">
@@ -352,14 +423,14 @@ export default function ReservationPage() {
       </Dialog>
 
       <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
-        <DialogContent className="bg-night/95 backdrop-blur-2xl border-white/10 text-white sm:max-w-4xl rounded-[2rem] p-0 overflow-hidden shadow-2xl">
+        <DialogContent className="bg-night/95 backdrop-blur-2xl border-white/10 text-white w-[95%] sm:max-w-4xl rounded-[2rem] p-0 overflow-hidden shadow-2xl flex flex-col max-h-[90vh]">
           <div className="absolute top-0 left-0 w-full h-1.5 bg-gradient-to-r from-orange-accent via-yellow-500 to-orange-accent opacity-70" />
-          <DialogHeader className="pt-8 px-8"><DialogTitle className="text-3xl font-display font-bold">Nouvelle Réservation</DialogTitle></DialogHeader>
-          <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col h-full overflow-hidden">
-            <div className="p-8 space-y-6 overflow-y-auto max-h-[70vh] custom-scrollbar">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+          <DialogHeader className="pt-8 px-6 sm:px-8 flex-none"><DialogTitle className="text-2xl sm:text-3xl font-display font-bold">Nouvelle Réservation</DialogTitle></DialogHeader>
+          <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col flex-1 overflow-hidden">
+            <div className="p-5 sm:p-8 space-y-6 overflow-y-auto flex-1 max-h-[60vh] sm:max-h-[65vh] custom-scrollbar">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 sm:gap-8">
                     <div className="space-y-4">
-                        <h3 className="text-orange-accent uppercase font-black text-[10px]">Client</h3>
+                        <h3 className="text-orange-accent uppercase font-black text-[10px] pb-1 border-b border-white/5">Client</h3>
                         <Select onValueChange={(v) => setValue("clientId", v === "null" ? null : v)}>
                             <SelectTrigger className="bg-white/5 h-12 rounded-xl"><SelectValue placeholder="Sélectionner client (Opt)" /></SelectTrigger>
                             <SelectContent className="bg-night border-white/10"><SelectItem value="null">Nouveau Client</SelectItem>{clients.map(c => <SelectItem key={c.id} value={c.id}>{c.nom || c.telephone}</SelectItem>)}</SelectContent>
@@ -368,7 +439,7 @@ export default function ReservationPage() {
                         <Input placeholder="Téléphone *" {...register("clientTel")} className="bg-white/5 h-12 rounded-xl" />
                     </div>
                     <div className="space-y-4">
-                        <h3 className="text-blue-400 uppercase font-black text-[10px]">Détails</h3>
+                        <h3 className="text-blue-400 uppercase font-black text-[10px] pb-1 border-b border-white/5">Détails</h3>
                         <Select onValueChange={(v: any) => setValue("methode_paiement", v)}>
                             <SelectTrigger className="bg-white/5 h-12 rounded-xl"><SelectValue placeholder="Type Paiement *" /></SelectTrigger>
                             <SelectContent className="bg-night border-white/10"><SelectItem value="Tranche">Tranche</SelectItem><SelectItem value="Totalité">Totalité</SelectItem></SelectContent>
@@ -391,25 +462,25 @@ export default function ReservationPage() {
                                 <SelectContent className="bg-night border-white/10">{produits.map(p => <SelectItem key={p.id} value={p.id}>{p.nom}</SelectItem>)}</SelectContent>
                             </Select>
                             <Input type="number" placeholder="Qté" {...register(`lignes.${index}.quantite`, { valueAsNumber: true })} className="col-span-3 bg-white/5 h-12 rounded-xl" />
-                            <Button type="button" variant="ghost" onClick={() => remove(index)} className="col-span-3 text-destructive"><Trash2 className="h-5 w-5" /></Button>
+                            <Button type="button" variant="ghost" onClick={() => remove(index)} className="col-span-3 text-destructive cursor-pointer hover:bg-destructive/10 rounded-xl"><Trash2 className="h-5 w-5" /></Button>
                         </div>
                     ))}
                     <Button type="button" onClick={() => append({ produitId: "", quantite: 1 })} variant="outline" className="w-full h-12 rounded-xl">+ Ajouter Produit</Button>
                     <div className="text-lg font-black text-white pt-2 text-right">Total: {montantTotal.toLocaleString()} FCFA</div>
                 </div>
             </div>
-            <div className="p-8 pt-0 mt-auto border-t border-white/10 pt-6">
-                <Button type="submit" className="bg-orange-accent text-night font-black h-14 w-full rounded-2xl shadow-xl active:scale-95">Valider la réservation</Button>
+            <div className="p-5 sm:p-8 pt-0 mt-auto border-t border-white/10 pt-6">
+                <Button type="submit" className="bg-orange-accent text-night font-black h-14 w-full rounded-2xl shadow-xl active:scale-95 cursor-pointer">Valider la réservation</Button>
             </div>
           </form>
         </DialogContent>
       </Dialog>
 
       <Dialog open={isPaiementModalOpen} onOpenChange={setIsPaiementModalOpen}>
-        <DialogContent className="bg-night/95 backdrop-blur-2xl border-white/10 text-white sm:max-w-md rounded-[2.5rem] p-0 overflow-hidden shadow-2xl">
+        <DialogContent className="bg-night/95 backdrop-blur-2xl border-white/10 text-white w-[95%] sm:max-w-md rounded-[2rem] p-0 overflow-hidden shadow-2xl flex flex-col max-h-[90vh]">
           <div className="absolute top-0 left-0 w-full h-1.5 bg-gradient-to-r from-forest-green via-emerald-400 to-forest-green opacity-70" />
-          <DialogHeader className="pt-8 px-8"><DialogTitle className="text-2xl font-display font-bold">Nouveau Paiement</DialogTitle></DialogHeader>
-          <form onSubmit={paiementForm.handleSubmit(onPaiementSubmit)} className="p-8 pt-4 space-y-6">
+          <DialogHeader className="pt-8 px-6 sm:px-8 flex-none"><DialogTitle className="text-2xl font-display font-bold">Nouveau Paiement</DialogTitle></DialogHeader>
+          <form onSubmit={paiementForm.handleSubmit(onPaiementSubmit)} className="p-5 sm:p-8 pt-2 sm:pt-4 space-y-6 overflow-y-auto custom-scrollbar flex-1">
             <div className="bg-white/[0.02] p-4 rounded-2xl border border-white/5 text-center">
                 <p className="text-xs text-white/40 font-black uppercase">Solde à régler</p>
                 <p className="text-3xl font-mono font-black text-forest-green">{paiementForm.watch("montant")?.toLocaleString()} FCFA</p>

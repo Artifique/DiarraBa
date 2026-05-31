@@ -136,7 +136,8 @@ export default function CategoriePage() {
         </Button>
       </div>
 
-      <div className="glass-card rounded-2xl border border-white/10 shadow-2xl overflow-hidden">
+      {/* Table View (Desktop & Tablet) */}
+      <div className="hidden md:block glass-card rounded-2xl border border-white/10 shadow-2xl overflow-hidden">
         <div className="overflow-x-auto custom-scrollbar">
             <table className="w-full text-left min-w-[600px]">
               <thead className="bg-white/[0.03] uppercase text-[9px] md:text-[10px] tracking-widest text-muted-foreground/60 font-black border-b border-white/5">
@@ -171,18 +172,46 @@ export default function CategoriePage() {
         </div>
       </div>
 
+      {/* Card View (Mobile) */}
+      <div className="grid grid-cols-1 gap-4 md:hidden">
+        {categories.length === 0 ? (
+          <div className="glass-card p-8 text-center text-muted-foreground/50 italic border border-white/10">Aucune catégorie.</div>
+        ) : (
+          categories.map((cat) => (
+            <div key={cat.id} className="glass-card p-5 rounded-2xl border border-white/10 shadow-lg space-y-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="h-9 w-9 rounded-xl bg-orange-accent/10 flex items-center justify-center text-orange-accent">
+                    <Tag className="h-4.5 w-4.5" />
+                  </div>
+                  <span className="text-white font-bold text-base">{cat.nomCategorie}</span>
+                </div>
+                <div className="flex items-center gap-1">
+                  <Button variant="ghost" size="icon" onClick={() => openEditModal(cat)} className="text-blue-400 hover:bg-blue-400/10 h-9 w-9 rounded-lg"><Edit className="h-4.5 w-4.5" /></Button>
+                  <Button variant="ghost" size="icon" onClick={() => handleDelete(cat.id)} className="text-destructive hover:bg-destructive/10 h-9 w-9 rounded-lg"><Trash2 className="h-4.5 w-4.5" /></Button>
+                </div>
+              </div>
+              <div className="flex justify-between items-center pt-3 border-t border-white/5 text-xs text-muted-foreground">
+                <span>Dernière mise à jour</span>
+                <span className="text-white/80 font-medium">{new Date(cat.date_modification).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' })}</span>
+              </div>
+            </div>
+          ))
+        )}
+      </div>
+
       <Pagination currentPage={currentPage} totalPages={totalPages} onPageChange={setCurrentPage} className="mt-6" />
 
       {/* Modal Création/Edition */}
       <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
-        <DialogContent className="bg-night/95 backdrop-blur-2xl border-white/10 text-white sm:max-w-md rounded-[2.5rem] shadow-[0_0_50px_rgba(0,0,0,0.5)] overflow-hidden p-0">
+        <DialogContent className="bg-night/95 backdrop-blur-2xl border-white/10 text-white w-[95%] sm:max-w-md rounded-[2rem] shadow-[0_0_50px_rgba(0,0,0,0.5)] overflow-hidden p-0">
           <div className="absolute top-0 left-0 w-full h-1.5 bg-gradient-to-r from-orange-accent via-yellow-500 to-orange-accent opacity-70" />
-          <DialogHeader className="pt-8 px-8">
-            <DialogTitle className="text-3xl font-display font-bold tracking-tight">{editingCategorie ? "Modifier" : "Nouvelle"} Catégorie</DialogTitle>
+          <DialogHeader className="pt-8 px-6 sm:px-8">
+            <DialogTitle className="text-2xl sm:text-3xl font-display font-bold tracking-tight">{editingCategorie ? "Modifier" : "Nouvelle"} Catégorie</DialogTitle>
             <DialogDescription className="text-muted-foreground/60 text-xs">Organisez vos produits avec des étiquettes claires.</DialogDescription>
           </DialogHeader>
 
-          <form onSubmit={handleSubmit(onSubmit)} className="p-8 pt-4 space-y-8">
+          <form onSubmit={handleSubmit(onSubmit)} className="px-6 sm:px-8 py-6 space-y-6 max-h-[80vh] overflow-y-auto custom-scrollbar">
             <div className="space-y-6">
                 <div className="flex items-center gap-2 pb-2 border-b border-white/5"><Layers className="h-4 w-4 text-orange-accent" /><h3 className="text-orange-accent text-[11px] font-black uppercase tracking-widest">Détails Catégorie</h3></div>
                 
@@ -196,10 +225,10 @@ export default function CategoriePage() {
                 </div>
             </div>
 
-            <DialogFooter className="mt-8 border-t border-white/5 pt-8 gap-4 flex-col sm:flex-row">
-                <Button type="button" variant="ghost" onClick={() => setIsModalOpen(false)} className="text-white/40 hover:text-white rounded-xl h-12 px-8">Annuler</Button>
-                <Button type="submit" className="bg-orange-accent text-night font-black uppercase tracking-widest hover:bg-orange-accent/90 rounded-xl px-12 h-14 shadow-xl active:scale-95 transition-all">
-                    {editingCategorie ? "Mettre à jour" : "Créer la catégorie"}
+            <DialogFooter className="mt-8 border-t border-white/5 pt-6 gap-3 flex-col sm:flex-row">
+                <Button type="button" variant="ghost" onClick={() => setIsModalOpen(false)} className="text-white/40 hover:text-white rounded-xl h-12 px-8 w-full sm:w-auto">Annuler</Button>
+                <Button type="submit" className="bg-orange-accent text-night font-black uppercase tracking-widest hover:bg-orange-accent/90 rounded-xl px-12 h-14 shadow-xl active:scale-95 transition-all w-full sm:w-auto">
+                    {editingCategorie ? "Mettre à jour" : "Créer"}
                 </Button>
             </DialogFooter>
           </form>

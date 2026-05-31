@@ -235,7 +235,8 @@ export default function ProduitPage() {
         </Select>
       </div>
 
-      <div className="glass-card rounded-2xl overflow-x-auto border border-white/10 shadow-2xl">
+      {/* Table View (Desktop & Tablet) */}
+      <div className="hidden md:block glass-card rounded-2xl overflow-hidden border border-white/10 shadow-2xl">
         <table className="w-full text-left min-w-[700px]">
           <thead className="bg-white/[0.03] uppercase text-[9px] md:text-[10px] tracking-widest text-muted-foreground/60 font-black border-b border-white/5">
             <tr>
@@ -268,13 +269,64 @@ export default function ProduitPage() {
         </table>
       </div>
 
+      {/* Card View (Mobile) */}
+      <div className="grid grid-cols-1 gap-4 md:hidden">
+        {filteredProduits.length === 0 ? (
+          <div className="glass-card p-8 text-center text-muted-foreground/50 italic border border-white/10">Aucun produit trouvé.</div>
+        ) : (
+          filteredProduits.map((prod: any) => (
+            <div key={prod.id} className="glass-card p-5 rounded-2xl border border-white/10 shadow-lg space-y-4">
+              <div className="flex justify-between items-start">
+                <div>
+                  <h4 className="text-white font-bold text-base leading-tight">{prod.nom}</h4>
+                  <span className="inline-block mt-1 text-[9px] bg-orange-accent/10 text-orange-accent font-black tracking-widest px-2 py-0.5 rounded-full uppercase">
+                    {prod.categorie?.nomCategorie || "Inconnue"}
+                  </span>
+                </div>
+                <span className={cn(
+                  "font-mono font-bold px-2.5 py-0.5 rounded-full text-xs border",
+                  prod.quantite <= 5 ? "bg-destructive/10 text-destructive border-destructive/20" : "bg-forest-green/10 text-forest-green border-forest-green/20"
+                )}>
+                  Stock: {prod.quantite}
+                </span>
+              </div>
+
+              {prod.fournisseur && (
+                <div className="bg-white/[0.015] p-3 rounded-xl border border-white/5 text-xs space-y-1">
+                  <p className="text-muted-foreground font-black uppercase text-[8px] tracking-wider">Fournisseur</p>
+                  <p className="text-white/90 font-bold">{prod.fournisseur.nom || "Indéfini"}</p>
+                  <p className="text-[10px] text-orange-accent/70 font-mono">{prod.fournisseur.telephone}</p>
+                </div>
+              )}
+
+              <div className="flex justify-between items-center pt-2 text-sm font-mono border-t border-white/5">
+                <span className="text-muted-foreground text-xs font-sans">Prix Vente</span>
+                <span className="text-white font-black">{prod.prix_unitaire.toLocaleString()} FCFA</span>
+              </div>
+
+              <div className="flex items-center justify-end gap-2 pt-2 border-t border-white/5">
+                <Button variant="ghost" size="icon" onClick={() => { setStockAdjustment({ produitId: prod.id, quantite: 0, type: "add" }); setIsStockModalOpen(true); }} className="text-forest-green hover:bg-forest-green/10 rounded-xl h-10 w-10 border border-white/5">
+                  <PackagePlus className="h-5 w-5" />
+                </Button>
+                <Button variant="ghost" size="icon" onClick={() => openEditModal(prod)} className="text-blue-400 hover:bg-blue-400/10 rounded-xl h-10 w-10 border border-white/5">
+                  <Edit className="h-5 w-5" />
+                </Button>
+                <Button variant="ghost" size="icon" onClick={() => handleDelete(prod.id)} className="text-destructive hover:bg-destructive/10 rounded-xl h-10 w-10 border border-white/5">
+                  <Trash2 className="h-5 w-5" />
+                </Button>
+              </div>
+            </div>
+          ))
+        )}
+      </div>
+
       <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
-        <DialogContent className="bg-night/95 backdrop-blur-2xl border-white/10 text-white sm:max-w-4xl rounded-[2rem] p-0 overflow-hidden shadow-2xl flex flex-col max-h-[90vh]">
+        <DialogContent className="bg-night/95 backdrop-blur-2xl border-white/10 text-white w-[95%] sm:max-w-4xl rounded-[2rem] p-0 overflow-hidden shadow-2xl flex flex-col max-h-[90vh]">
           <div className="absolute top-0 left-0 w-full h-1.5 bg-gradient-to-r from-orange-accent via-yellow-500 to-orange-accent opacity-70" />
-          <DialogHeader className="pt-8 px-8 flex-none"><DialogTitle className="text-3xl font-display font-bold">{editingProduit ? "Édition" : "Nouveau"} Produit</DialogTitle></DialogHeader>
+          <DialogHeader className="pt-8 px-6 sm:px-8 flex-none"><DialogTitle className="text-2xl sm:text-3xl font-display font-bold">{editingProduit ? "Édition" : "Nouveau"} Produit</DialogTitle></DialogHeader>
           <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col flex-1 overflow-hidden">
-            <div className="p-8 pt-4 overflow-y-auto custom-scrollbar flex-1">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
+            <div className="p-5 sm:p-8 pt-2 sm:pt-4 overflow-y-auto custom-scrollbar flex-1 max-h-[60vh] sm:max-h-none">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 sm:gap-10">
                     <div className="space-y-6">
                         <div className="flex items-center gap-2 pb-2 border-b border-white/5"><Box className="h-4 w-4 text-orange-accent" /><h3 className="text-orange-accent text-[11px] font-black uppercase tracking-widest">Informations Article</h3></div>
                         <div className="space-y-2"><Label className="text-[10px] font-black text-white/40 uppercase">Désignation *</Label><Input placeholder="Ex: Poussin chair" {...register("nom")} className="bg-white/[0.03] border-white/10 h-12 rounded-xl" /></div>
@@ -285,14 +337,14 @@ export default function ProduitPage() {
                         </div>
                         <div className="space-y-2"><Label className="text-[10px] font-black text-white/40 uppercase">Stock Initial</Label><Input type="number" {...register("quantite", { setValueAs: v => Number(v) })} className="bg-white/[0.03] border-white/10 h-12 rounded-xl font-mono text-center text-lg" /></div>
                     </div>
-                    <div className="space-y-6 bg-white/[0.015] p-6 rounded-[2rem] border border-white/5 shadow-inner">
+                    <div className="space-y-6 bg-white/[0.015] p-5 sm:p-6 rounded-[2rem] border border-white/5 shadow-inner">
                         <div className="flex items-center gap-2 pb-2 border-b border-white/5"><UserIcon className="h-4 w-4 text-blue-400" /><h3 className="text-blue-400 text-[11px] font-black uppercase tracking-widest">Source / Fournisseur</h3></div>
                         <div className="space-y-2"><Label className="text-[10px] font-black text-white/40 uppercase">Nom ou Entreprise (Opt.)</Label><div className="relative"><UserIcon className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-white/10" /><Input list="suppliers-names" placeholder="Tapez ou choisissez..." {...register("newFournisseurNom")} className="bg-white/5 border-white/10 focus:border-blue-400/50 pl-11 h-12 rounded-xl" /><datalist id="suppliers-names">{fournisseurs.map(f => f.nom && <option key={f.id} value={f.nom} />)}</datalist></div></div>
                         <div className="space-y-2"><Label className="text-[10px] font-black text-white/40 uppercase">Téléphone *</Label><div className="relative"><Phone className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-white/10" /><Input list="suppliers-tels" placeholder="Tapez ou choisissez..." {...register("newFournisseurTel")} className="bg-white/5 border-white/10 focus:border-blue-400/50 pl-11 h-12 rounded-xl font-mono" /><datalist id="suppliers-tels">{fournisseurs.map(f => <option key={f.id} value={f.telephone} />)}</datalist></div></div>
                     </div>
                 </div>
             </div>
-            <div className="p-8 pt-0 border-t border-white/5 mt-auto"><Button type="submit" className="w-full h-14 bg-orange-accent text-night font-black uppercase rounded-2xl">Valider</Button></div>
+            <div className="p-5 sm:p-8 pt-0 border-t border-white/5 mt-auto"><Button type="submit" className="w-full h-14 bg-orange-accent text-night font-black uppercase rounded-2xl">Valider</Button></div>
           </form>
         </DialogContent>
       </Dialog>

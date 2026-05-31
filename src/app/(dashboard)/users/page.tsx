@@ -72,7 +72,8 @@ export default function UsersPage() {
         </Button>
       </div>
 
-      <div className="glass-card rounded-[2rem] overflow-hidden border border-white/10 shadow-2xl">
+      {/* Table View (Desktop & Tablet) */}
+      <div className="hidden md:block glass-card rounded-[2rem] overflow-hidden border border-white/10 shadow-2xl">
         <table className="w-full text-left">
           <thead className="bg-white/[0.03] uppercase text-[9px] md:text-[10px] tracking-widest text-muted-foreground/60 font-black border-b border-white/5">
             <tr>
@@ -112,11 +113,38 @@ export default function UsersPage() {
         </table>
       </div>
 
+      {/* Card View (Mobile) */}
+      <div className="grid grid-cols-1 gap-4 md:hidden">
+        {users.map(u => (
+          <div key={u.id} className="glass-card p-5 rounded-2xl border border-white/10 shadow-lg space-y-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="h-10 w-10 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center text-white/40"><UserIcon className="h-5 w-5" /></div>
+                <span className="text-white font-bold text-base">{u.nom}</span>
+              </div>
+              <span className={cn("px-3 py-1 rounded-full text-[10px] font-black border", u.role === "Admin" ? "bg-orange-accent/10 text-orange-accent border-orange-accent/20" : "bg-blue-400/10 text-blue-400 border-blue-400/20")}>
+                {u.role?.toUpperCase()}
+              </span>
+            </div>
+
+            <div className="bg-white/[0.015] p-3 rounded-xl border border-white/5 text-xs space-y-2">
+              <span className="flex items-center gap-2 text-white/80"><Mail className="h-3.5 w-3.5 text-muted-foreground" /> {u.email}</span>
+              <span className="flex items-center gap-2 font-mono text-white/80"><Phone className="h-3.5 w-3.5 text-muted-foreground" /> {u.telephone || "---"}</span>
+            </div>
+
+            <div className="flex items-center justify-end gap-2 pt-2 border-t border-white/5">
+              <Button variant="ghost" size="icon" onClick={() => { setEditingUser(u); setFormData({ nom: u.nom, email: u.email || "", telephone: u.telephone || "", mot_de_passe: "", role: u.role }); setIsOpen(true); }} className="text-blue-400 hover:bg-blue-400/10 rounded-xl h-10 w-10 border border-white/5"><Edit className="h-5 w-5" /></Button>
+              <Button variant="ghost" size="icon" onClick={() => handleDelete(u.id)} className="text-destructive hover:bg-destructive/10 rounded-xl h-10 w-10 border border-white/5"><Trash2 className="h-5 w-5" /></Button>
+            </div>
+          </div>
+        ))}
+      </div>
+
       <Dialog open={isOpen} onOpenChange={setIsOpen}>
-        <DialogContent className="bg-night/95 backdrop-blur-2xl border-white/10 text-white sm:max-w-lg rounded-[2rem] shadow-2xl p-0 overflow-hidden">
+        <DialogContent className="bg-night/95 backdrop-blur-2xl border-white/10 text-white w-[95%] sm:max-w-lg rounded-[2rem] shadow-2xl p-0 overflow-hidden flex flex-col max-h-[90vh]">
           <div className="absolute top-0 left-0 w-full h-1.5 bg-gradient-to-r from-orange-accent via-yellow-500 to-orange-accent opacity-70" />
-          <DialogHeader className="pt-8 px-8"><DialogTitle className="text-2xl font-display font-bold">{editingUser ? "Modifier" : "Nouvel accès"}</DialogTitle></DialogHeader>
-          <div className="p-8 pt-4 space-y-6">
+          <DialogHeader className="pt-8 px-6 sm:px-8 flex-none"><DialogTitle className="text-2xl font-display font-bold">{editingUser ? "Modifier" : "Nouvel accès"}</DialogTitle></DialogHeader>
+          <div className="p-5 sm:p-8 pt-2 sm:pt-4 space-y-6 overflow-y-auto custom-scrollbar flex-1">
             <div className="space-y-4">
                 <Input placeholder="Nom complet" value={formData.nom} onChange={e => setFormData({...formData, nom: e.target.value})} className="bg-white/5 border-white/10 h-12 rounded-xl" />
                 <Input placeholder="Email" value={formData.email} onChange={e => setFormData({...formData, email: e.target.value})} className="bg-white/5 border-white/10 h-12 rounded-xl" />
@@ -127,7 +155,7 @@ export default function UsersPage() {
                     <SelectContent className="bg-night border-white/10"><SelectItem value="Admin">Admin</SelectItem><SelectItem value="gerant">Gérant</SelectItem></SelectContent>
                 </Select>
             </div>
-            <Button onClick={handleSave} className="w-full h-14 bg-orange-accent text-night font-black uppercase rounded-2xl shadow-xl active:scale-95">Enregistrer</Button>
+            <Button onClick={handleSave} className="w-full h-14 bg-orange-accent text-night font-black uppercase rounded-2xl shadow-xl active:scale-95 cursor-pointer">Enregistrer</Button>
           </div>
         </DialogContent>
       </Dialog>

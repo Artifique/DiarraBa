@@ -4,10 +4,10 @@ import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
-import { Bell, Search, Calendar } from "lucide-react";
+import { Bell, Search, Calendar, Menu } from "lucide-react";
 import { getNonLuesAction } from "@/app/actions/data"; // Import de la Server Action
 
-export function Header() {
+export function Header({ onMenuToggle }: { onMenuToggle?: () => void }) {
   const [unreadCount, setUnreadCount] = useState(0);
   const [today, setToday] = useState<string>("");
 
@@ -37,12 +37,21 @@ export function Header() {
   }, [fetchUnreadCount]);
 
   return (
-    <header className="h-auto min-h-[80px] border-b border-white/5 bg-night/50 backdrop-blur-sm sticky top-0 z-30 px-4 md:px-8 py-4 flex flex-wrap items-center justify-between gap-4">
-      <div>
-        <h1 className="text-lg md:text-xl font-display font-semibold text-white">Bonjour, Admin 👋</h1>
-        <div className="flex items-center text-[9px] md:text-[10px] text-muted-foreground mt-1 uppercase tracking-wider">
-          <Calendar className="h-3 w-3 mr-1 text-orange-accent" />
-          {today}
+    <header className="h-auto min-h-[80px] border-b border-white/5 bg-night/50 backdrop-blur-sm sticky top-0 z-30 px-4 md:px-8 py-4 flex items-center justify-between gap-4">
+      <div className="flex items-center gap-3">
+        <button 
+          onClick={onMenuToggle}
+          className="lg:hidden p-2 rounded-xl bg-white/5 border border-white/10 hover:bg-white/10 transition-colors text-white cursor-pointer active:scale-95 transition-transform"
+          aria-label="Ouvrir le menu"
+        >
+          <Menu className="h-5 w-5" />
+        </button>
+        <div>
+          <h1 className="text-lg md:text-xl font-display font-semibold text-white">Bonjour, Admin 👋</h1>
+          <div className="flex items-center text-[9px] md:text-[10px] text-muted-foreground mt-1 uppercase tracking-wider">
+            <Calendar className="h-3 w-3 mr-1 text-orange-accent" />
+            {today}
+          </div>
         </div>
       </div>
 

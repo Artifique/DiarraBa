@@ -95,16 +95,16 @@ export default function NotificationsPage() {
 
       {/* Modal Détails */}
       <Dialog open={!!selectedNotif} onOpenChange={() => setSelectedNotif(null)}>
-        <DialogContent className="bg-night/95 backdrop-blur-2xl border-white/10 text-white rounded-[2.5rem] p-8 max-w-sm">
+        <DialogContent className="bg-night/95 backdrop-blur-2xl border-white/10 text-white w-[95%] sm:max-w-sm rounded-[2rem] p-6 sm:p-8">
           <DialogHeader>
             <DialogTitle className="text-2xl font-display font-bold text-orange-accent">Détail</DialogTitle>
           </DialogHeader>
           <div className="py-6 text-white/90 text-sm leading-relaxed">{selectedNotif?.message}</div>
-          <DialogFooter className="gap-3 flex-col sm:flex-row">
-            <Button variant="outline" className="rounded-xl flex-1" onClick={() => {
+          <DialogFooter className="gap-3 flex-col sm:flex-row mt-4">
+            <Button variant="outline" className="rounded-xl flex-1 w-full cursor-pointer" onClick={() => {
                 window.location.href = getLink(selectedNotif?.type || "");
             }}>Aller à la ressource</Button>
-            <Button variant="destructive" className="rounded-xl flex-1" onClick={() => selectedNotif && handleDelete(selectedNotif.id)}>Supprimer</Button>
+            <Button variant="destructive" className="rounded-xl flex-1 w-full cursor-pointer" onClick={() => selectedNotif && handleDelete(selectedNotif.id)}>Supprimer</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
