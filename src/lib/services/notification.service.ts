@@ -44,12 +44,31 @@ export const notificationService = {
       await createIfNotExists(userId, "Alerte", `Stock faible : "${prod.nom}" (${prod.quantite} restants).`, prod.id, "/produit");
     }
 
-    // 3. Éclosions (J10, J20)
-    const eclosions = await prisma.eclosion.findMany({ where: { paye: true } });
+    // 3. Éclosions (J10, J20) — s'applique à toutes les éclosions, payées ou non
+    const eclosions = await prisma.eclosion.findMany();
     for (const e of eclosions) {
-      const diffDays = Math.floor((today.getTime() - e.date_debut.getTime()) / (1000 * 60 * 60 * 24));
-      if (diffDays === 10) await createIfNotExists(userId, "Eclosion", `Éclosion client ${e.telephone}: 10ème jour.`, e.id, "/eclosion");
-      else if (diffDays === 20) await createIfNotExists(userId, "Eclosion", `Éclosion client ${e.telephone}: 20ème jour, fin cycle.`, e.id, "/eclosion");
+      // Normaliser la date de début à minuit pour un calcul précis en jours entiers
+      const dateDebut = new Date(e.date_debut);
+      dateDebut.setHours(0, 0, 0, 0);
+      const diffDays = Math.round((today.getTime() - dateDebut.getTime()) / (1000 * 60 * 60 * 24));
+
+      if (diffDays === 10) {
+        await createIfNotExists(
+          userId,
+          "Eclosion",
+          `Éclosion client ${e.telephone} : 10ème jour — contrôle intermédiaire.`,
+          e.id,
+          "/eclosion"
+        );
+      } else if (diffDays === 20) {
+        await createIfNotExists(
+          userId,
+          "Eclosion",
+          `Éclosion client ${e.telephone} : 20ème jour — fin de cycle prévu.`,
+          e.id,
+          "/eclosion"
+        );
+      }
     }
   },
 };

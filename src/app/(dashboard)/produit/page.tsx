@@ -320,6 +320,94 @@ export default function ProduitPage() {
         )}
       </div>
 
+      {/* Modal Ajustement du Stock */}
+      <Dialog open={isStockModalOpen} onOpenChange={setIsStockModalOpen}>
+        <DialogContent className="bg-night/95 backdrop-blur-2xl border-white/10 text-white w-[95%] sm:max-w-sm rounded-[2rem] p-0 overflow-hidden shadow-2xl flex flex-col">
+          <div className="absolute top-0 left-0 w-full h-1.5 bg-gradient-to-r from-forest-green via-emerald-400 to-forest-green opacity-70" />
+          <DialogHeader className="pt-8 px-6 sm:px-8 flex-none">
+            <DialogTitle className="text-2xl font-display font-bold">Ajuster le Stock</DialogTitle>
+            <DialogDescription className="text-muted-foreground/60 text-xs mt-1">
+              {produits.find(p => p.id === stockAdjustment.produitId)?.nom || ""}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="p-6 space-y-5">
+            {/* Type d'ajustement */}
+            <div className="grid grid-cols-2 gap-3">
+              <button
+                type="button"
+                onClick={() => setStockAdjustment(s => ({ ...s, type: "add" }))}
+                className={cn(
+                  "h-12 rounded-xl font-bold text-sm border transition-all",
+                  stockAdjustment.type === "add"
+                    ? "bg-forest-green/20 text-forest-green border-forest-green/40"
+                    : "bg-white/5 text-white/40 border-white/10 hover:bg-white/10"
+                )}
+              >
+                + Ajouter
+              </button>
+              <button
+                type="button"
+                onClick={() => setStockAdjustment(s => ({ ...s, type: "remove" }))}
+                className={cn(
+                  "h-12 rounded-xl font-bold text-sm border transition-all",
+                  stockAdjustment.type === "remove"
+                    ? "bg-destructive/20 text-destructive border-destructive/40"
+                    : "bg-white/5 text-white/40 border-white/10 hover:bg-white/10"
+                )}
+              >
+                − Retirer
+              </button>
+            </div>
+
+            {/* Quantité */}
+            <div className="space-y-2">
+              <Label className="text-[10px] font-black text-white/40 uppercase">Quantité</Label>
+              <Input
+                type="number"
+                min={1}
+                value={stockAdjustment.quantite === 0 ? "" : stockAdjustment.quantite}
+                onChange={(ev) => setStockAdjustment(s => ({ ...s, quantite: Math.max(0, parseInt(ev.target.value) || 0) }))}
+                className="bg-white/5 border-white/10 h-14 rounded-xl text-center text-2xl font-mono font-bold"
+                placeholder="0"
+              />
+            </div>
+
+            {/* Aperçu nouveau stock */}
+            {(() => {
+              const prod = produits.find(p => p.id === stockAdjustment.produitId);
+              if (!prod) return null;
+              const newQ = stockAdjustment.type === "add"
+                ? prod.quantite + stockAdjustment.quantite
+                : prod.quantite - stockAdjustment.quantite;
+              return (
+                <div className="flex items-center justify-between bg-white/[0.03] border border-white/5 rounded-xl px-4 py-3 text-sm">
+                  <span className="text-muted-foreground">Stock actuel :</span>
+                  <span className="font-mono font-bold text-white">{prod.quantite}</span>
+                  <span className="text-white/30">→</span>
+                  <span className={cn("font-mono font-bold", newQ < 0 ? "text-destructive" : newQ <= 5 ? "text-orange-accent" : "text-forest-green")}>
+                    {newQ < 0 ? <span className="text-destructive">Stock insuffisant</span> : newQ}
+                  </span>
+                </div>
+              );
+            })()}
+
+            <Button
+              type="button"
+              disabled={stockAdjustment.quantite <= 0}
+              onClick={handleStockAdjustment}
+              className={cn(
+                "w-full h-14 font-black uppercase rounded-2xl transition-all active:scale-95",
+                stockAdjustment.type === "add"
+                  ? "bg-forest-green text-white shadow-lg shadow-forest-green/20"
+                  : "bg-destructive text-white shadow-lg shadow-destructive/20"
+              )}
+            >
+              Confirmer
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
       <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
         <DialogContent className="bg-night/95 backdrop-blur-2xl border-white/10 text-white w-[95%] sm:max-w-4xl rounded-[2rem] p-0 overflow-hidden shadow-2xl flex flex-col max-h-[90vh]">
           <div className="absolute top-0 left-0 w-full h-1.5 bg-gradient-to-r from-orange-accent via-yellow-500 to-orange-accent opacity-70" />
