@@ -134,3 +134,6 @@ export async function getDashboardDataAction() {
     return { globalStats, distribution, history, recentActivities };
 }
 export async function getGlobalStatsAction() { return dashboardService.getGlobalStats(); }
+export async function getDashboardChartDataAction(mode: 'week' | 'month' | 'year', year?: number, month?: number) {
+    return dashboardService.getChartData(mode, { year, month });
+}

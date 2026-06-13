@@ -114,6 +114,162 @@ export const dashboardService = {
     }));
   },
 
+  async getChartData(mode: 'week' | 'month' | 'year', options?: { year?: number; month?: number }) {
+    const today = new Date();
+    
+    let startDate = new Date();
+    let endDate = new Date();
+    
+    if (mode === 'week') {
+      // Du lundi au dimanche de la semaine en cours
+      const day = today.getDay();
+      const diff = today.getDate() - day + (day === 0 ? -6 : 1);
+      startDate = new Date(today);
+      startDate.setDate(diff);
+      startDate.setHours(0, 0, 0, 0);
+      
+      endDate = new Date(startDate);
+      endDate.setDate(startDate.getDate() + 7);
+    } else if (mode === 'month') {
+      const year = options?.year ?? today.getFullYear();
+      const month = options?.month ?? today.getMonth(); // 0-indexed
+      startDate = new Date(year, month, 1);
+      endDate = new Date(year, month + 1, 1);
+    } else if (mode === 'year') {
+      const year = options?.year ?? today.getFullYear();
+      startDate = new Date(year, 0, 1);
+      endDate = new Date(year + 1, 0, 1);
+    }
+
+    // Récupérer les réservations dans cette plage
+    const reservations = await prisma.reservation.findMany({
+      where: {
+        date_reservation: {
+          gte: startDate,
+          lt: endDate,
+        },
+      },
+      select: {
+        montant_total: true,
+        date_reservation: true,
+      },
+    });
+
+    // Récupérer les éclosions dans cette plage
+    const eclosions = await prisma.eclosion.findMany({
+      where: {
+        date_debut: {
+          gte: startDate,
+          lt: endDate,
+        },
+      },
+      select: {
+        prix: true,
+        date_debut: true,
+      },
+    });
+
+    // Construire le tableau de retour selon le mode
+    if (mode === 'week') {
+      // 7 jours de Lundi à Dimanche
+      const days = ["Lun", "Mar", "Mer", "Jeu", "Ven", "Sam", "Dim"];
+      const result = days.map((dayName, index) => {
+        const d = new Date(startDate);
+        d.setDate(startDate.getDate() + index);
+        const dayStart = new Date(d);
+        dayStart.setHours(0,0,0,0);
+        const dayEnd = new Date(d);
+        dayEnd.setDate(d.getDate() + 1);
+        dayEnd.setHours(0,0,0,0);
+
+        const resSum = reservations
+          .filter(r => {
+            const rDate = new Date(r.date_reservation);
+            return rDate >= dayStart && rDate < dayEnd;
+          })
+          .reduce((sum, r) => sum + (r.montant_total || 0), 0);
+
+        const eclSum = eclosions
+          .filter(e => {
+            const eDate = new Date(e.date_debut);
+            return eDate >= dayStart && eDate < dayEnd;
+          })
+          .reduce((sum, e) => sum + (e.prix || 0), 0);
+
+        return {
+          name: dayName,
+          reservations: resSum,
+          eclosions: eclSum,
+          total: resSum + eclSum,
+        };
+      });
+      return result;
+    } else if (mode === 'month') {
+      // Jours du mois (1 à N)
+      const numDays = new Date(startDate.getFullYear(), startDate.getMonth() + 1, 0).getDate();
+      const result = [];
+      for (let i = 1; i <= numDays; i++) {
+        const d = new Date(startDate.getFullYear(), startDate.getMonth(), i);
+        const dayStart = new Date(d);
+        dayStart.setHours(0,0,0,0);
+        const dayEnd = new Date(d);
+        dayEnd.setDate(d.getDate() + 1);
+        dayEnd.setHours(0,0,0,0);
+
+        const resSum = reservations
+          .filter(r => {
+            const rDate = new Date(r.date_reservation);
+            return rDate >= dayStart && rDate < dayEnd;
+          })
+          .reduce((sum, r) => sum + (r.montant_total || 0), 0);
+
+        const eclSum = eclosions
+          .filter(e => {
+            const eDate = new Date(e.date_debut);
+            return eDate >= dayStart && eDate < dayEnd;
+          })
+          .reduce((sum, e) => sum + (e.prix || 0), 0);
+
+        result.push({
+          name: i.toString().padStart(2, '0'),
+          reservations: resSum,
+          eclosions: eclSum,
+          total: resSum + eclSum,
+        });
+      }
+      return result;
+    } else {
+      // 12 mois de Janvier à Décembre
+      const months = ["Jan", "Fév", "Mar", "Avr", "Mai", "Jun", "Jul", "Aoû", "Sep", "Oct", "Nov", "Déc"];
+      const result = months.map((monthName, index) => {
+        const monthStart = new Date(startDate.getFullYear(), index, 1);
+        const monthEnd = new Date(startDate.getFullYear(), index + 1, 1);
+
+        const resSum = reservations
+          .filter(r => {
+            const rDate = new Date(r.date_reservation);
+            return rDate >= monthStart && rDate < monthEnd;
+          })
+          .reduce((sum, r) => sum + (r.montant_total || 0), 0);
+
+        const eclSum = eclosions
+          .filter(e => {
+            const eDate = new Date(e.date_debut);
+            return eDate >= monthStart && eDate < monthEnd;
+          })
+          .reduce((sum, e) => sum + (e.prix || 0), 0);
+
+        return {
+          name: monthName,
+          reservations: resSum,
+          eclosions: eclSum,
+          total: resSum + eclSum,
+        };
+      });
+      return result;
+    }
+  },
+
   async getRecentActivities() {
     const reservations = await prisma.reservation.findMany({
       select: {

@@ -275,7 +275,25 @@ export default function ReservationPage() {
         statut: (reservation.montant_total - totalPaye) <= 0 ? "Payee" : "Partielle",
       }, currentUserId);
 
-      doc.save(`facture-${reservation.id.slice(0, 5)}.pdf`);
+      const blobUrl = doc.output("bloburl");
+      const iframe = document.createElement("iframe");
+      iframe.style.position = "fixed";
+      iframe.style.right = "0";
+      iframe.style.bottom = "0";
+      iframe.style.width = "0";
+      iframe.style.height = "0";
+      iframe.style.border = "none";
+      iframe.src = blobUrl.toString();
+      document.body.appendChild(iframe);
+      
+      iframe.onload = () => {
+        iframe.contentWindow?.focus();
+        iframe.contentWindow?.print();
+        setTimeout(() => {
+          document.body.removeChild(iframe);
+        }, 3000);
+      };
+
       setShowSuccess(true);
     } catch (e: any) { 
         console.error("Erreur PDF:", e);

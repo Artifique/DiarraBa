@@ -15,8 +15,10 @@ import { cn } from "@/lib/utils";
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from "recharts";
 import { 
   getDashboardDataAction,
-  checkAndGenerateNotificationsAction 
+  checkAndGenerateNotificationsAction,
+  getDashboardChartDataAction
 } from "../../actions/data";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 type Stat = {
   name: string;
@@ -47,8 +49,12 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState<Stat[]>([]);
   const [distributionData, setDistributionData] = useState<any[]>([]);
-  const [revenueData, setRevenueData] = useState<any[]>([]);
   const [activities, setActivities] = useState<any[]>([]);
+  const [chartMode, setChartMode] = useState<'week' | 'month' | 'year'>('week');
+  const [selectedYear, setSelectedYear] = useState<number>(new Date().getFullYear());
+  const [selectedMonth, setSelectedMonth] = useState<number>(new Date().getMonth());
+  const [chartData, setChartData] = useState<any[]>([]);
+  const [loadingChart, setLoadingChart] = useState(false);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -57,7 +63,7 @@ export default function DashboardPage() {
         const user = storedUser ? JSON.parse(storedUser) : null;
         const userId = user?.id;
 
-        const { globalStats, distribution, history, recentActivities } = await getDashboardDataAction();
+        const { globalStats, distribution, recentActivities } = await getDashboardDataAction();
 
         if (userId) {
           await checkAndGenerateNotificationsAction(userId);
@@ -103,7 +109,6 @@ export default function DashboardPage() {
         ]);
 
         setDistributionData(distribution);
-        setRevenueData(history);
         setActivities(recentActivities);
       } catch (error) {
         console.error("Error loading dashboard data:", error);
@@ -114,6 +119,22 @@ export default function DashboardPage() {
 
     fetchData();
   }, []);
+
+  useEffect(() => {
+    const fetchChartData = async () => {
+      setLoadingChart(true);
+      try {
+        const data = await getDashboardChartDataAction(chartMode, selectedYear, selectedMonth);
+        setChartData(data);
+      } catch (error) {
+        console.error("Error loading chart data:", error);
+      } finally {
+        setLoadingChart(false);
+      }
+    };
+
+    fetchChartData();
+  }, [chartMode, selectedYear, selectedMonth]);
 
   if (loading) {
     return (
@@ -169,22 +190,80 @@ export default function DashboardPage() {
           transition={{ delay: 0.4 }}
           className="lg:col-span-2 glass-card p-6 rounded-2xl h-[400px] flex flex-col"
         >
-          <div className="flex justify-between items-center mb-6">
-            <h3 className="text-lg font-display font-semibold text-white">Revenus des 6 derniers mois</h3>
-            <div className="flex gap-2">
-              <div className="flex items-center text-xs text-muted-foreground">
-                <div className="h-2 w-2 rounded-full bg-orange-accent mr-2" />
-                Ventes (FCFA)
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
+            <div>
+              <h3 className="text-lg font-display font-semibold text-white">Activité Financière & Opérations</h3>
+              <p className="text-xs text-muted-foreground mt-0.5">Suivi des réservations et éclosions</p>
+            </div>
+            
+            <div className="flex flex-wrap items-center gap-2">
+              <div className="flex bg-white/5 rounded-xl p-1 border border-white/5">
+                {(['week', 'month', 'year'] as const).map((m) => (
+                  <button
+                    key={m}
+                    onClick={() => setChartMode(m)}
+                    className={cn(
+                      "px-3 py-1 text-[10px] sm:text-xs font-bold rounded-lg transition-colors cursor-pointer capitalize",
+                      chartMode === m 
+                        ? "bg-orange-accent text-night" 
+                        : "text-muted-foreground hover:text-white"
+                    )}
+                  >
+                    {m === 'week' ? 'Semaine' : m === 'month' ? 'Mois' : 'Année'}
+                  </button>
+                ))}
               </div>
+
+              {chartMode === 'month' && (
+                <Select
+                  value={selectedMonth.toString()}
+                  onValueChange={(v) => setSelectedMonth(Number(v))}
+                >
+                  <SelectTrigger className="bg-white/5 border-white/10 h-8 text-[10px] sm:text-xs rounded-xl w-28">
+                    <SelectValue placeholder="Mois" />
+                  </SelectTrigger>
+                  <SelectContent className="bg-night border-white/10">
+                    {["Janvier", "Février", "Mars", "Avril", "Mai", "Juin", "Juillet", "Août", "Septembre", "Octobre", "Novembre", "Décembre"].map((m, idx) => (
+                      <SelectItem key={idx} value={idx.toString()}>{m}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
+
+              {(chartMode === 'month' || chartMode === 'year') && (
+                <Select
+                  value={selectedYear.toString()}
+                  onValueChange={(v) => setSelectedYear(Number(v))}
+                >
+                  <SelectTrigger className="bg-white/5 border-white/10 h-8 text-[10px] sm:text-xs rounded-xl w-20">
+                    <SelectValue placeholder="Année" />
+                  </SelectTrigger>
+                  <SelectContent className="bg-night border-white/10">
+                    {[selectedYear - 1, selectedYear, selectedYear + 1].map((y) => (
+                      <SelectItem key={y} value={y.toString()}>{y}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
             </div>
           </div>
-          <div className="flex-1 w-full">
+          
+          <div className="flex-1 w-full relative">
+            {loadingChart && (
+              <div className="absolute inset-0 bg-night/50 backdrop-blur-sm z-10 flex items-center justify-center rounded-xl">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-orange-accent"></div>
+              </div>
+            )}
             <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={revenueData}>
+              <AreaChart data={chartData}>
                 <defs>
-                  <linearGradient id="colorTotal" x1="0" y1="0" x2="0" y2="1">
+                  <linearGradient id="colorReservations" x1="0" y1="0" x2="0" y2="1">
                     <stop offset="5%" stopColor="#F5A623" stopOpacity={0.3}/>
                     <stop offset="95%" stopColor="#F5A623" stopOpacity={0}/>
+                  </linearGradient>
+                  <linearGradient id="colorEclosions" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#A78BFA" stopOpacity={0.3}/>
+                    <stop offset="95%" stopColor="#A78BFA" stopOpacity={0}/>
                   </linearGradient>
                 </defs>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#ffffff10" />
@@ -198,19 +277,44 @@ export default function DashboardPage() {
                   axisLine={false} 
                   tickLine={false} 
                   tick={{ fill: '#94a3b8', fontSize: 10 }}
-                  tickFormatter={(val) => `${val / 1000}k`}
+                  tickFormatter={(val) => val >= 1000 ? `${val / 1000}k` : val}
                 />
                 <Tooltip 
                   contentStyle={{ backgroundColor: '#0A0B10', border: '1px solid #ffffff10', borderRadius: '12px' }}
-                  itemStyle={{ color: '#F5A623', fontWeight: 'bold' }}
+                  itemStyle={{ fontWeight: 'bold', fontSize: '11px' }}
+                  labelStyle={{ fontSize: '11px', color: '#94a3b8' }}
+                  formatter={(value: any, name: any) => {
+                    const label = name === 'reservations' ? 'Réservations' : name === 'eclosions' ? 'Éclosions' : name;
+                    return [`${Number(value).toLocaleString()} FCFA`, label];
+                  }}
+                />
+                <Legend
+                  verticalAlign="top"
+                  align="right"
+                  iconType="circle"
+                  iconSize={8}
+                  wrapperStyle={{ fontSize: '10px', paddingBottom: '8px', color: '#94a3b8' }}
+                  formatter={(value) => value === 'reservations' ? 'Réservations' : 'Éclosions'}
                 />
                 <Area 
                   type="monotone" 
-                  dataKey="total" 
+                  dataKey="reservations" 
+                  stackId="1"
                   stroke="#F5A623" 
                   fillOpacity={1} 
-                  fill="url(#colorTotal)" 
+                  fill="url(#colorReservations)" 
                   strokeWidth={2}
+                  name="reservations"
+                />
+                <Area 
+                  type="monotone" 
+                  dataKey="eclosions" 
+                  stackId="1"
+                  stroke="#A78BFA" 
+                  fillOpacity={1} 
+                  fill="url(#colorEclosions)" 
+                  strokeWidth={2}
+                  name="eclosions"
                 />
               </AreaChart>
             </ResponsiveContainer>
