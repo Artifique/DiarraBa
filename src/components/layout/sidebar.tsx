@@ -21,7 +21,7 @@ const navigation = [
   { name: "Utilisateurs", href: "/users", icon: Users },
   { group: true, name: "SYSTÈME" },
   { name: "Notifications", href: "/notifications", icon: Bell },
-  { name: "Settings", href: "/settings", icon: Settings },
+  { name: "Paramètres", href: "/settings", icon: Settings },
 ];
 
 export function Sidebar({ 

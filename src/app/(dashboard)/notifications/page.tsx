@@ -6,7 +6,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Bell, AlertTriangle, Calendar, CheckCircle2, Trash2, Loader2, Info } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { getNonLuesAction, deleteNotifAction, checkAndGenerateNotificationsAction } from "../../actions/data";
+import { getNonLuesAction, deleteNotifAction, markAsReadAction, checkAndGenerateNotificationsAction } from "../../actions/data";
 import { cn } from "@/lib/utils";
 
 export default function NotificationsPage() {
@@ -35,10 +35,23 @@ export default function NotificationsPage() {
     init();
   }, [fetchNotifications]);
 
+  const dispatchUpdate = () => {
+    window.dispatchEvent(new CustomEvent("notifications-updated"));
+  };
+
+  const handleOpen = async (n: any) => {
+    setSelectedNotif(n);
+    // Marquer immédiatement comme lue et retirer de la liste
+    await markAsReadAction(n.id);
+    setNotifications(prev => prev.filter(notif => notif.id !== n.id));
+    dispatchUpdate();
+  };
+
   const handleDelete = async (id: string) => {
     await deleteNotifAction(id);
     setNotifications(prev => prev.filter(n => n.id !== id));
     setSelectedNotif(null);
+    dispatchUpdate();
   };
 
   const getIcon = (type: string) => {
@@ -76,7 +89,7 @@ export default function NotificationsPage() {
                     <motion.div 
                         key={n.id}
                         initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, x: -20 }}
-                        onClick={() => setSelectedNotif(n)}
+                        onClick={() => handleOpen(n)}
                         className="glass-card p-6 rounded-[2rem] border border-white/10 flex items-center gap-6 cursor-pointer hover:bg-white/[0.03] transition-all"
                     >
                         <div className={cn("h-14 w-14 rounded-2xl flex items-center justify-center border border-white/5", bg, color)}>

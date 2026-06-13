@@ -33,7 +33,12 @@ export function Header({ onMenuToggle }: { onMenuToggle?: () => void }) {
   useEffect(() => {
     fetchUnreadCount();
     const interval = setInterval(fetchUnreadCount, 30000);
-    return () => clearInterval(interval);
+    // Écouter les mises à jour déclenchées par la page notifications
+    window.addEventListener("notifications-updated", fetchUnreadCount);
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener("notifications-updated", fetchUnreadCount);
+    };
   }, [fetchUnreadCount]);
 
   return (
