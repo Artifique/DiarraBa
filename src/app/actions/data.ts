@@ -84,7 +84,7 @@ export async function createPaiementAction(data: any, userId: string) {
 }
 
 // Facture
-export async function createFactureAction(data: any, userId: string) { return factureService.createFacture(data, userId); }
+export async function createFactureAction(data: any, userId: string) { return factureService.upsertFacture(data, userId); }
 
 // Notifications
 export async function getNonLuesAction(userId: string) { 

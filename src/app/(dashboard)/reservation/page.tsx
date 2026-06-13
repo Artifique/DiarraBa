@@ -274,20 +274,24 @@ export default function ReservationPage() {
 
       const totalPaye = (reservation as any).paiements?.reduce((acc: any, p: any) => acc + p.montant, 0) || 0;
 
-      await createFactureAction(
-        {
-          reservation: { connect: { id: reservation.id } },
-          numero: `FAC-${Date.now().toString().slice(-6)}`,
-          date_facture: new Date(),
-          montant_total: reservation.montant_total,
-          montant_paye: totalPaye,
-          montant_restant: reservation.montant_total - totalPaye,
-          statut: reservation.montant_total - totalPaye <= 0 ? "Payee" : "Partielle",
-        },
-        currentUserId
-      );
+      // Vérifier si une facture existe déjà pour éviter la violation de contrainte unique
+      const existingFacture = (reservation as any).facture;
+      if (!existingFacture) {
+        await createFactureAction(
+          {
+            reservation: { connect: { id: reservation.id } },
+            numero: `FAC-${Date.now().toString().slice(-6)}`,
+            date_facture: new Date(),
+            montant_total: reservation.montant_total,
+            montant_paye: totalPaye,
+            montant_restant: reservation.montant_total - totalPaye,
+            statut: reservation.montant_total - totalPaye <= 0 ? "Payee" : "Partielle",
+          },
+          currentUserId
+        );
+      }
 
-      const blobUrl = doc.output("bloburl");
+      const blobUrl = doc.output("bloburl").toString();
       setInvoicePreviewUrl(blobUrl);
       setShowInvoiceDialog(true);
       setShowSuccess(true);

@@ -10,6 +10,6 @@ declare module 'jspdf-autotable' {
     headStyles?: any;
     [key: string]: any;
   }
-  function autoTable(this: jsPDF, options: AutoTableOptions): jsPDF;
+  function autoTable(doc: jsPDF, options: AutoTableOptions): jsPDF;
   export default autoTable;
 }
