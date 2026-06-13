@@ -17,8 +17,9 @@ import * as z from "zod";
 import { cn } from "@/lib/utils";
 import { Pagination } from "@/components/ui/pagination";
 import jsPDF from "jspdf";
-import "jspdf-autotable";
-const autoTable = (jsPDF as any).prototype.autoTable;
+import autoTable from "jspdf-autotable";
+
+
 
 const formSchema = z.object({
   clientId: z.string().optional().nullable(),
@@ -58,6 +59,8 @@ export default function ReservationPage() {
   const [showSuccess, setShowSuccess] = useState(false);
   const [showError, setShowError] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
+  const [invoicePreviewUrl, setInvoicePreviewUrl] = useState<string | null>(null);
+  const [showInvoiceDialog, setShowInvoiceDialog] = useState(false);
   
   const form = useForm<ReservationFormValues>({
     resolver: zodResolver(formSchema),
@@ -243,62 +246,55 @@ export default function ReservationPage() {
 
   const generateInvoice = async (reservation: PrismaReservation) => {
     if (!currentUserId) {
-        setErrorMessage("Utilisateur non authentifié.");
-        setShowError(true);
-        return;
+      setErrorMessage("Utilisateur non authentifié.");
+      setShowError(true);
+      return;
     }
     try {
       const doc = new jsPDF();
-      doc.setFontSize(22); doc.text("FACTURE", 105, 20, { align: "center" });
+      doc.setFontSize(22);
+      doc.text("FACTURE", 105, 20, { align: "center" });
       doc.setFontSize(12);
       doc.text(`Client: ${(reservation as any).client?.nom || (reservation as any).clientNom || "N/A"}`, 14, 30);
       doc.text(`Date: ${new Date().toLocaleDateString()}`, 14, 37);
 
-      (doc as any).autoTable({
+      autoTable(doc, {
         startY: 50,
-        head: [['Produit', 'Quantité', 'PU', 'Total']],
-        body: (reservation as any).lignes.map((l: any) => [l.produit?.nom, l.quantite, l.prix_unitaire, l.quantite * l.prix_unitaire]),
-        foot: [['', '', 'Total', `${reservation.montant_total} FCFA`]],
-        theme: 'grid',
-        headStyles: { fillColor: [245, 166, 35] }
+        head: [["Produit", "Quantité", "PU", "Total"]],
+        body: (reservation as any).lignes.map((l: any) => [
+          l.produit?.nom,
+          l.quantite,
+          l.prix_unitaire,
+          l.quantite * l.prix_unitaire,
+        ]),
+        foot: [["", "", "Total", `${reservation.montant_total} FCFA`]],
+        theme: "grid",
+        headStyles: { fillColor: [245, 166, 35] },
       });
 
       const totalPaye = (reservation as any).paiements?.reduce((acc: any, p: any) => acc + p.montant, 0) || 0;
-      
-      await createFactureAction({
-        reservation: { connect: { id: reservation.id } },
-        numero: `FAC-${Date.now().toString().slice(-6)}`,
-        date_facture: new Date(),
-        montant_total: reservation.montant_total,
-        montant_paye: totalPaye,
-        montant_restant: reservation.montant_total - totalPaye,
-        statut: (reservation.montant_total - totalPaye) <= 0 ? "Payee" : "Partielle",
-      }, currentUserId);
+
+      await createFactureAction(
+        {
+          reservation: { connect: { id: reservation.id } },
+          numero: `FAC-${Date.now().toString().slice(-6)}`,
+          date_facture: new Date(),
+          montant_total: reservation.montant_total,
+          montant_paye: totalPaye,
+          montant_restant: reservation.montant_total - totalPaye,
+          statut: reservation.montant_total - totalPaye <= 0 ? "Payee" : "Partielle",
+        },
+        currentUserId
+      );
 
       const blobUrl = doc.output("bloburl");
-      const iframe = document.createElement("iframe");
-      iframe.style.position = "fixed";
-      iframe.style.right = "0";
-      iframe.style.bottom = "0";
-      iframe.style.width = "0";
-      iframe.style.height = "0";
-      iframe.style.border = "none";
-      iframe.src = blobUrl.toString();
-      document.body.appendChild(iframe);
-      
-      iframe.onload = () => {
-        iframe.contentWindow?.focus();
-        iframe.contentWindow?.print();
-        setTimeout(() => {
-          document.body.removeChild(iframe);
-        }, 3000);
-      };
-
+      setInvoicePreviewUrl(blobUrl);
+      setShowInvoiceDialog(true);
       setShowSuccess(true);
-    } catch (e: any) { 
-        console.error("Erreur PDF:", e);
-        setErrorMessage("Erreur lors de la génération PDF."); 
-        setShowError(true); 
+    } catch (e: any) {
+      console.error("Erreur PDF:", e);
+      setErrorMessage("Erreur lors de la génération PDF.");
+      setShowError(true);
     }
   };
 
@@ -522,6 +518,28 @@ export default function ReservationPage() {
       {/* Statut Dialogs */}
       <Dialog open={showSuccess} onOpenChange={setShowSuccess}><DialogContent className="bg-night/95 text-white text-center rounded-[2.5rem] p-10 max-w-sm"><div className="flex flex-col items-center gap-6"><div className="h-20 w-20 bg-forest-green/20 rounded-full flex items-center justify-center animate-bounce"><CheckCircle2 className="h-10 w-10 text-forest-green" /></div> <DialogTitle className="text-2xl font-display font-bold">Succès !</DialogTitle><Button onClick={() => setShowSuccess(false)} className="w-full bg-forest-green text-white rounded-xl h-12">Continuer</Button></div></DialogContent></Dialog>
       <Dialog open={showError} onOpenChange={setShowError}><DialogContent className="bg-night/95 text-white text-center rounded-[2.5rem] p-10 max-w-sm"><div className="flex flex-col items-center gap-6"><div className="h-20 w-20 bg-destructive/20 rounded-full flex items-center justify-center"><AlertCircle className="h-10 w-10 text-destructive" /></div> <DialogTitle className="text-2xl font-display font-bold">Erreur</DialogTitle><p className="text-sm">{errorMessage}</p><Button onClick={() => setShowError(false)} className="w-full bg-destructive text-white rounded-xl h-12">Reessayer</Button></div></DialogContent></Dialog>
+
+      {/* Invoice Preview Dialog */}
+      <Dialog open={showInvoiceDialog} onOpenChange={setShowInvoiceDialog}>
+        <DialogContent className="bg-night/95 backdrop-blur-2xl border-white/10 text-white w-[95%] sm:max-w-3xl rounded-[2rem] p-0 overflow-hidden shadow-2xl flex flex-col max-h-[90vh]">
+          <DialogHeader className="pt-8 px-6 sm:px-8 flex-none">
+            <DialogTitle className="text-2xl font-display font-bold">Aperçu de la Facture</DialogTitle>
+          </DialogHeader>
+          <div className="flex-1 overflow-auto p-4">
+            {invoicePreviewUrl && <iframe src={invoicePreviewUrl} className="w-full h-full" />}
+          </div>
+          <DialogFooter className="p-4 flex gap-2 justify-end">
+            <Button onClick={() => {
+              const iframe = document.querySelector('iframe');
+              if (iframe && iframe.contentWindow) {
+                iframe.contentWindow.focus();
+                iframe.contentWindow.print();
+              }
+            }}>Imprimer</Button>
+            <Button variant="ghost" onClick={() => setShowInvoiceDialog(false)}>Fermer</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

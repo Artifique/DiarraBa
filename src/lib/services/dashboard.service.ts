@@ -29,6 +29,15 @@ export const dashboardService = {
       },
     });
 
+    // Nombre de réservations non payées (aucun paiement associé)
+    const unpaidReservationsCount = await prisma.reservation.count({
+      where: {
+        paiements: {
+          none: {},
+        },
+      },
+    });
+
     // Couveuses actives (maintenant Éclosions en cours)
     // Cette logique doit être revue selon ce que "couveuses actives" signifie avec le modèle Eclosion
     // Par exemple, on peut compter les éclosions dont la date de fin est dans le futur
@@ -48,6 +57,7 @@ export const dashboardService = {
       totalCA,
       produitsCount: produitsCount || 0, // Ancien nom: volaillesCount
       reservationsCount: reservationsCount || 0,
+      unpaidReservationsCount: unpaidReservationsCount || 0,
       occupancyRate,
       activeEclosionsCount, // Nouvelle stat
     };
