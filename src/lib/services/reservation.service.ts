@@ -107,15 +107,42 @@ export const reservationService = {
   },
 
   async deleteReservation(id: string, userId: string): Promise<Reservation> {
-    const oldReservation = await prisma.reservation.findUnique({ where: { id } });
+    const oldReservation = await prisma.reservation.findUnique({
+      where: { id },
+      include: {
+        lignes: true,
+      },
+    });
     if (!oldReservation) throw new Error("Réservation non trouvée.");
 
-    // IMPORTANT: Gérer la suppression des paiements et lignes de réservation associés
-    // Soit en cascade dans le schema.prisma, soit manuellement ici.
-    // Pour l'instant, je vais laisser Prisma gérer si des cascades sont définies.
+    const deletedReservation = await prisma.$transaction(async (tx) => {
+      // 1. Restaurer les stocks des produits
+      for (const ligne of oldReservation.lignes) {
+        await tx.produit.update({
+          where: { id: ligne.produitId },
+          data: { quantite: { increment: ligne.quantite } },
+        });
+      }
 
-    const deletedReservation = await prisma.reservation.delete({
-      where: { id },
+      // 2. Supprimer la facture associée
+      await tx.facture.deleteMany({
+        where: { reservationId: id },
+      });
+
+      // 3. Supprimer les paiements associés
+      await tx.paiement.deleteMany({
+        where: { reservationId: id },
+      });
+
+      // 4. Supprimer les lignes de réservation associées
+      await tx.ligneReservation.deleteMany({
+        where: { reservationId: id },
+      });
+
+      // 5. Supprimer la réservation
+      return tx.reservation.delete({
+        where: { id },
+      });
     });
 
     await auditService.log({
